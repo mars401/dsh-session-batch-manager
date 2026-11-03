@@ -1,0 +1,15 @@
+# dsh-session-batch-manager bundle 层：插入会话批量管理 + 会话管理面板插件行。
+#
+# 只有一行（裸包名）：client-modules 要求声明了 `dsh.client` 的包在 Loader 里只能有
+# 一条活动行——同一行既装配宿主 main（lib/host/index.js，删除路由 + index-inject
+# 配置发布），又让 web 启动图解析 exports["./client"] 装配浏览器半（lib/client.js）。
+# 浏览器侧 Loader 行不携带 config，宿主配置经 window.__DSH_SESSION_BATCH_MANAGER__ 注入页面。
+- insert:
+    - id: dsh-session-batch-manager
+      name: 'dsh-session-batch-manager'
+      config:
+        routeBase: '/dsh-session-batch-manager/v1'
+        maxBatchSize: 200
+        trustedHosts: []
+        statsPollIntervalMs: 5000
+        statsSweepConcurrency: 4
