@@ -19,12 +19,13 @@ Verified with DSH 0.2.2-alpha.2 (Web UI, dev sandbox); see [6 Compatibility](#6-
 
 ## 1 Demo
 
-| Scenario | Video |
-| :--- | :--- |
-| Sidebar batch operations (select → archive → unarchive → delete) | [docs/demo-batch.mp4](docs/demo-batch.mp4) |
-| Session management dashboard (table, filters, tooltips, batch operations) | [docs/demo-dashboard.mp4](docs/demo-dashboard.mp4) |
-
-> The videos still need to be recorded; the links above become playable once the recordings are committed. A second-by-second shooting script is available in [docs/demo-script.md](docs/demo-script.md).
+| # | Screenshot | Description |
+| :--- | :--- | :--- |
+| 1 | ![Sidebar batch mode](docs/screenshots/01-sidebar-batch-mode.png) | Sidebar **Batch** mode: checkboxes appear, rows can be multi-selected, floating toolbar at the bottom. |
+| 2 | ![Delete confirmation](docs/screenshots/02-delete-confirm.png) | **Delete** confirmation dialog lists the selected sessions before physical deletion. |
+| 3 | ![Session management dashboard](docs/screenshots/03-dashboard-panel.png) | Full-screen **Session management** panel: 6-column table (model, token usage, cache, context pressure), progressive loading, in-panel batch operations. |
+| 4 | ![Filter chips](docs/screenshots/04-filter-chips.png) | Four **filter chips** (All / Main / Subagents / Archived) with live counts — click to filter the table. |
+| 5 | ![Tooltip detail](docs/screenshots/05-tooltip-detail.png) | Per-bucket **tooltip** on token usage cells showing uncached input, cache read/write, and output breakdown. |
 
 ## 2 Features
 

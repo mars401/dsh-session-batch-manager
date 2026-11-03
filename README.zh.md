@@ -19,12 +19,13 @@ DSH GUI 原生只有单个会话的归档，没有任何删除入口。本插件
 
 ## 1 演示
 
-| 场景 | 视频 |
-| :--- | :--- |
-| 侧栏批量操作（选择 → 归档 → 恢复 → 删除） | [docs/demo-batch.mp4](docs/demo-batch.mp4) |
-| 会话管理面板（表格、过滤、明细、批量操作） | [docs/demo-dashboard.mp4](docs/demo-dashboard.mp4) |
-
-> 视频待录制，录制完成后提交入库，届时上方链接即可播放。逐秒分镜脚本见 [docs/demo-script.md](docs/demo-script.md)。
+| # | 截图 | 说明 |
+| :--- | :--- | :--- |
+| 1 | ![侧栏批量模式](docs/screenshots/01-sidebar-batch-mode.png) | 侧栏**批量管理**模式：选择框出现，可多选行，底部出现浮动工具条。 |
+| 2 | ![删除确认](docs/screenshots/02-delete-confirm.png) | **删除**确认对话框，列出待删除会话后再执行物理删除。 |
+| 3 | ![会话管理面板](docs/screenshots/03-dashboard-panel.png) | 全屏**会话管理**面板：6 列表格（模型、token 消耗、缓存、上下文压力），渐进加载，面板内批量操作。 |
+| 4 | ![过滤 chips](docs/screenshots/04-filter-chips.png) | 四个**过滤 chips**（全部 / 主会话 / 子代理 / 已归档）带实时计数，点击过滤表格。 |
+| 5 | ![Tooltip 明细](docs/screenshots/05-tooltip-detail.png) | Token 消耗列的分桶 **tooltip** 明细：非缓存输入、缓存读/写、输出分项。 |
 
 ## 2 功能
 
