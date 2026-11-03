@@ -131,11 +131,11 @@ dsh plugin --profile web add <本仓库路径>
 
 | DeepSeek Harness (DSH) | dsh-session-batch-manager | 验证环境 |
 | :--- | :--- | :--- |
-| **v0.2.2-alpha.2** | `0.1.0` | Web UI（开发沙箱） |
+| **>=0.2.1** | `0.1.0` | Web UI（开发沙箱 0.2.2-alpha.2、桌面 App 0.2.1-rc.3） |
 
-以上组合已在官方 Web UI 完成测试。插件在 `engines` 中声明 `dsh: ">=0.2.2-alpha.2"`。桌面 App（0.2.1-rc.3）未验证；其他版本组合可能同样兼容，但未逐一验证。
+插件在 `engines` 中声明 `dsh: ">=0.2.1"`。已在 DSH **0.2.2-alpha.2**（开发沙箱、Web UI）和 **0.2.1-rc.3**（桌面 App）上验证通过。核心功能（批量归档/删除、侧栏选择框）使用自 0.2.1 起稳定的 API。会话管理面板的统计功能需要 `sessionQuery` 服务，在不提供该服务的版本上面板自动降级为「仅列表 + 批量操作」（见 `degraded` 标记）。
 
-无右键菜单服务的 DSH 版本（含 0.2.2-alpha.2）上右键菜单入口安静缺席，见「[2.1](#21-侧栏批量管理)」。
+无右键菜单服务的 DSH 版本上右键菜单入口安静缺席，见「[2.1](#21-侧栏批量管理)」。
 
 本插件是 Cordis 插件，运行时零依赖：宿主半为纯 ESM bundle，浏览器半经 DSH 模块加载器装载。
 
@@ -145,6 +145,7 @@ dsh plugin --profile web add <本仓库路径>
 - 提交修改前的质量门：`pnpm typecheck`、`pnpm build`、`node --test tests/stats.test.mjs`。
 - 源码布局：`src/host/`（宿主半：路由、统计聚合器、信任栅栏、结构化类型）、`src/client/`（浏览器半：批量操作、状态存储、管理面板与组件）、`tests/`（宿主单元测试）、`docs/`（设计 / UI 规格 / 评审 / 测试文档）。
 - **与宿主的耦合点**（升级 dsh 时复核）：行 DOM `div[data-row-key^="session:"]`；槽位 `sidebar.workspaces.session.row.action`、`sidebar.footer.action`、`shell.overlay`；客户端服务 `sessions` / `workspaces` / `locale` + 可选 `contextMenus`；宿主服务 `sessions` / `sessionPersistence` / `workspaceRegistry` / `webServer`；事件 `webserver/index-inject`、`workspace/session-activity`、`api-session/removed`；归档拒绝判别 `error.name === 'WorkspaceArchiveError'` 且 `rpcError.code === 'workspace/session-active'`。完整论证见 `docs/`。
+- **稳定 CSS 类名契约**：`.dsh-batch-bar` 为对外稳定类名（浮动批量工具条），共存插件可引用（如 z-index 或可见性规则），升级时保持兼容。`.dsh-batch-footer`（侧栏入口按钮）同为稳定类名。
 - 发布记录见 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 8 致谢

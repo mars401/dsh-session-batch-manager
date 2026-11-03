@@ -46,4 +46,4 @@ First public release.
 
 ### Compatibility
 
-- **compat**: Verified with DSH 0.2.2-alpha.2 (Web UI, dev sandbox profile). Desktop App (0.2.1-rc.3) not verified; sandbox + source 0.2.2-alpha.2 is the development baseline.
+- **compat**: Verified with DSH 0.2.2-alpha.2 (Web UI, dev sandbox) and 0.2.1-rc.3 (Desktop App). Plugin declares `dsh: ">=0.2.1"` in engines. Core features use stable APIs available since 0.2.1; dashboard stats degrade gracefully on builds without `sessionQuery`.

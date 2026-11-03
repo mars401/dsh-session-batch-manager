@@ -131,11 +131,11 @@ Delete is evaluated **per session, independently** — one failure never affects
 
 | DeepSeek Harness (DSH) | dsh-session-batch-manager | Verified environment |
 | :--- | :--- | :--- |
-| **v0.2.2-alpha.2** | `0.1.0` | Web UI (dev sandbox) |
+| **>=0.2.1** | `0.1.0` | Web UI (dev sandbox 0.2.2-alpha.2, Desktop App 0.2.1-rc.3) |
 
-The combination above has been tested with the official Web UI. The plugin declares `dsh: ">=0.2.2-alpha.2"` in `engines`. The Desktop App (0.2.1-rc.3) has not been verified; other version combinations may work but have not been individually verified.
+The plugin declares `dsh: ">=0.2.1"` in `engines`. Verified on both DSH **0.2.2-alpha.2** (dev sandbox, Web UI) and **0.2.1-rc.3** (Desktop App). Core features (batch archive/delete, sidebar checkboxes) use stable APIs available since 0.2.1. The session management dashboard stats use `sessionQuery`; on builds where this service is unavailable the panel degrades gracefully to list + batch operations (see `degraded` flag).
 
-On DSH builds without a context-menu service (0.2.2-alpha.2 included), the context-menu entry is silently absent — see [2.1](#21-sidebar-batch-management).
+On DSH builds without a context-menu service, the context-menu entry is silently absent — see [2.1](#21-sidebar-batch-management).
 
 This is a Cordis plugin with zero runtime dependencies: the host half is a plain ESM bundle, the client half is loaded through the DSH module loader.
 
@@ -145,6 +145,7 @@ This is a Cordis plugin with zero runtime dependencies: the host half is a plain
 - Quality gates before submitting changes: `pnpm typecheck`, `pnpm build`, `node --test tests/stats.test.mjs`.
 - Source layout: `src/host/` (host half: routes, stats aggregator, trust fence, structured types), `src/client/` (browser half: batch ops, stores, dashboard panel and components), `tests/` (host unit tests), `docs/` (design / UI spec / review / test documents).
 - **Host coupling points** — re-check when upgrading DSH: row DOM `div[data-row-key^="session:"]`; slots `sidebar.workspaces.session.row.action`, `sidebar.footer.action`, `shell.overlay`; client services `sessions` / `workspaces` / `locale` plus optional `contextMenus`; host services `sessions` / `sessionPersistence` / `workspaceRegistry` / `webServer`; events `webserver/index-inject`, `workspace/session-activity`, `api-session/removed`; archive-refusal detection via `error.name === 'WorkspaceArchiveError'` and `rpcError.code === 'workspace/session-active'`. The full reasoning lives in `docs/`.
+- **Stable CSS class contract**: `.dsh-batch-bar` is the stable class name for the floating batch toolbar. Coexisting plugins may reference it (e.g. for z-index or visibility rules). This class is preserved across upgrades. `.dsh-batch-footer` (sidebar entry buttons) is also stable.
 - Release history is in [CHANGELOG.md](CHANGELOG.md).
 
 ## 8 Acknowledgments
