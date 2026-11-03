@@ -51,6 +51,8 @@ docker exec dsh-dev node /Users/jiawen.guang/AI/my-deepseek-harness/dsh-session-
 # 清单输出到容器内 /tmp/shell-corpus.json
 ```
 
+> ⚠️ **造完夹具必须重启沙箱**（`./dsh-dev.sh restart`）才会被列出来。实测（2026-11-03 22:05）：夹具已落盘（`ls /root/.dsh/sessions/--root--/` 能看到 4 个目录），但 `/stats` 连续轮询 60s 仍只返回原有的 1 行；重启后同一次请求立刻返回 5 行。会话目录不是热扫描的，别把这段延迟当成缺陷或「造数失败」。
+
 ### 路径 B（可选）：桌面真实语料——装插件由用户自己执行
 
 **桌面本来不装也能验收**：路径 A 的沙箱语料已含真实复现样本，四条验收点在沙箱里全能验完。路径 B 只是多一层「真数据、真 App」的信心，代价是要动桌面实例。
@@ -71,7 +73,7 @@ docker exec dsh-dev node /Users/jiawen.guang/AI/my-deepseek-harness/dsh-session-
 
 - ✅ CLI 存在且可执行、`--version` = 0.2.1-rc.5、`plugin --help` 说明它转发 pnpm（`add <pkg>` / `remove <pkg>`）
 - ✅ 插件 `engines.dsh` 为 `>=0.2.1`，与桌面 0.2.1-rc.5 相容
-- ❓ **未验证**：该命令是否同时把包名写进 `package.json` 的 `dsh.profile.bundles`（沙箱那次是 `dsh-dev.sh install-plugin` 走的同一条 `dsh plugin add`，装完 bundles 里有名字，但那次名字本来就在）
+- ✅ **已验证**（2026-11-03 22:01，沙箱 GitHub 全新安装路径）：`dsh plugin add github:mars401/dsh-session-batch-manager` **会**把包名写进 `package.json` 的 `dsh.profile.bundles`（装前该名字已被 `remove-plugin` 摘掉，装后 bundles 里重新出现，无需手工补），dependencies 记为 `"dsh-session-batch-manager": "github:mars401/dsh-session-batch-manager"`
 - ❓ **未验证**：桌面实例的 GUI 端口是动态的，路由前缀需按实际端口拼
 
 若装完插件没生效，按序自查：
@@ -79,8 +81,11 @@ docker exec dsh-dev node /Users/jiawen.guang/AI/my-deepseek-harness/dsh-session-
 ```sh
 grep -A12 '"dependencies"' ~/.dsh/profiles/desktop/package.json   # 应有 dsh-session-batch-manager 且为 link: 指向工作副本
 grep -A12 '"bundles"' ~/.dsh/profiles/desktop/package.json        # 应含 "dsh-session-batch-manager"；缺就手工补上再重启
-curl -s "http://127.0.0.1:<桌面端口>/dsh-session-batch-manager/v1/status"   # 期望 {"ok":true,...,"version":"0.1.0"}
+curl -s "http://127.0.0.1:<桌面端口>/dsh-session-batch-manager/v1/status"   # 期望 {"ok":true,...}，version 应与下面这条一致
+grep -m1 '"version"' ~/.dsh/profiles/desktop/node_modules/dsh-session-batch-manager/package.json
 ```
+
+> ⚠️ **`/status` 的 version 可能与包版本不一致**（v0.1.1 发布件实测：包 `package.json` 是 `0.1.1`，`/status` 却报 `0.1.0`）。原因是版本号由 `scripts/build.mjs` 在**构建期**注入 `__PLUGIN_VERSION__`（`src/host/index.ts:130/189/411` 三处用它），若「先构建、后改版本号」，提交的 `lib/` 里就嵌着旧版本号。所以**以 `package.json` 的 version 为准**，并顺手比对两条输出是否相同；不同即说明产物早于版本号 bump，需重建后重新发布。
 
 **同样要确认跑的是修复版**（路径 A 那步在桌面一样适用，把路径换成桌面 profile）：
 

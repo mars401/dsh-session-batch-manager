@@ -73,7 +73,7 @@ Verify the installation:
 
 ```sh
 curl -s http://127.0.0.1:<your-dsh-web-port>/dsh-session-batch-manager/v1/status
-# {"ok":true,"service":"dsh-session-batch-manager","version":"0.1.0"}
+# {"ok":true,"service":"dsh-session-batch-manager","version":"0.1.1"}
 ```
 
 > The `desktop` profile is managed by the official Desktop app and is not intended to be modified with the regular `dsh` CLI. Desktop users should install the plugin through **Plugins** in the app.
@@ -131,7 +131,7 @@ Delete is evaluated **per session, independently** — one failure never affects
 
 | DeepSeek Harness (DSH) | dsh-session-batch-manager | Verified environment |
 | :--- | :--- | :--- |
-| **>=0.2.1** | `0.1.0` | Web UI (dev sandbox 0.2.2-alpha.2 — fully verified); Desktop App 0.2.1-rc.5 — coupling points statically verified, runtime TBD |
+| **>=0.2.1** | `0.1.1` | Web UI (dev sandbox 0.2.2-alpha.2 — fully verified); Desktop App 0.2.1-rc.5 — coupling points statically verified, runtime TBD |
 
 The plugin declares `dsh: ">=0.2.1"` in `engines`. **0.2.2-alpha.2** (dev sandbox, Web UI) has been fully verified end-to-end. **Desktop App 0.2.1-rc.5**: all seven coupling points (slots, services, events, `sessionQuery`) are present in the app bundle — static grep confirmation, runtime verification pending. Core features (batch archive/delete, sidebar checkboxes) use stable APIs available since 0.2.1. The session management dashboard stats use `sessionQuery`; on builds where this service is unavailable the panel degrades gracefully to list + batch operations (see `degraded` flag).
 

@@ -73,7 +73,7 @@ dsh plugin --profile web add github:mars401/dsh-session-batch-manager
 
 ```sh
 curl -s http://127.0.0.1:<你的-dsh-web-端口>/dsh-session-batch-manager/v1/status
-# {"ok":true,"service":"dsh-session-batch-manager","version":"0.1.0"}
+# {"ok":true,"service":"dsh-session-batch-manager","version":"0.1.1"}
 ```
 
 > `desktop` profile 由官方 Desktop 客户端管理，普通 `dsh` CLI 不用于修改该 profile。Desktop 用户请通过客户端内的**插件**安装。
@@ -131,7 +131,7 @@ dsh plugin --profile web add <本仓库路径>
 
 | DeepSeek Harness (DSH) | dsh-session-batch-manager | 验证环境 |
 | :--- | :--- | :--- |
-| **>=0.2.1** | `0.1.0` | Web UI（开发沙箱 0.2.2-alpha.2——端到端验证通过）；桌面 App 0.2.1-rc.5——耦合点静态核验通过，运行时待确认 |
+| **>=0.2.1** | `0.1.1` | Web UI（开发沙箱 0.2.2-alpha.2——端到端验证通过）；桌面 App 0.2.1-rc.5——耦合点静态核验通过，运行时待确认 |
 
 插件在 `engines` 中声明 `dsh: ">=0.2.1"`。**0.2.2-alpha.2**（开发沙箱、Web UI）已完成端到端验证。**桌面 App 0.2.1-rc.5**：七个耦合点（槽位、服务、事件、`sessionQuery`）均在 app bundle 中存在——grep 静态确认，运行时验证待补。核心功能（批量归档/删除、侧栏选择框）使用自 0.2.1 起稳定的 API。会话管理面板的统计功能需要 `sessionQuery` 服务，在不提供该服务的版本上面板自动降级为「仅列表 + 批量操作」（见 `degraded` 标记）。
 
