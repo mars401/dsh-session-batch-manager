@@ -46,4 +46,4 @@ First public release.
 
 ### Compatibility
 
-- **compat**: Verified with DSH 0.2.2-alpha.2 (Web UI, dev sandbox) and 0.2.1-rc.3 (Desktop App). Plugin declares `dsh: ">=0.2.1"` in engines. Core features use stable APIs available since 0.2.1; dashboard stats degrade gracefully on builds without `sessionQuery`.
+- **compat**: Fully verified with DSH 0.2.2-alpha.2 (Web UI, dev sandbox). Desktop App 0.2.1-rc.5: all seven coupling points confirmed present in app bundle via static grep — runtime verification pending. Plugin declares `dsh: ">=0.2.1"` in engines. Core features use stable APIs available since 0.2.1; dashboard stats degrade gracefully on builds without `sessionQuery`.

@@ -131,9 +131,9 @@ Delete is evaluated **per session, independently** — one failure never affects
 
 | DeepSeek Harness (DSH) | dsh-session-batch-manager | Verified environment |
 | :--- | :--- | :--- |
-| **>=0.2.1** | `0.1.0` | Web UI (dev sandbox 0.2.2-alpha.2, Desktop App 0.2.1-rc.3) |
+| **>=0.2.1** | `0.1.0` | Web UI (dev sandbox 0.2.2-alpha.2 — fully verified); Desktop App 0.2.1-rc.5 — coupling points statically verified, runtime TBD |
 
-The plugin declares `dsh: ">=0.2.1"` in `engines`. Verified on both DSH **0.2.2-alpha.2** (dev sandbox, Web UI) and **0.2.1-rc.3** (Desktop App). Core features (batch archive/delete, sidebar checkboxes) use stable APIs available since 0.2.1. The session management dashboard stats use `sessionQuery`; on builds where this service is unavailable the panel degrades gracefully to list + batch operations (see `degraded` flag).
+The plugin declares `dsh: ">=0.2.1"` in `engines`. **0.2.2-alpha.2** (dev sandbox, Web UI) has been fully verified end-to-end. **Desktop App 0.2.1-rc.5**: all seven coupling points (slots, services, events, `sessionQuery`) are present in the app bundle — static grep confirmation, runtime verification pending. Core features (batch archive/delete, sidebar checkboxes) use stable APIs available since 0.2.1. The session management dashboard stats use `sessionQuery`; on builds where this service is unavailable the panel degrades gracefully to list + batch operations (see `degraded` flag).
 
 On DSH builds without a context-menu service, the context-menu entry is silently absent — see [2.1](#21-sidebar-batch-management).
 
