@@ -87,8 +87,26 @@
 | 8 | P2 | 触摸（§12.9）与动效（§12.10） | 点行选中无 hover 残留；点数值弹 Tooltip 不触发选中；`prefers-reduced-motion` 下无入场/进度动画 |
 | 9 | P2 | macOS 安全区（§12.3） | 桌面 App 内 `--dsh-frame-top-clearance` 生效，header 不压标题栏（沙箱浏览器不适用，桌面端核验） |
 
+## G. GitHub 全新安装验证（2026-11-03 09:45，开源第一体验路径）
+
+对象：`github:mars401/dsh-session-batch-manager`（包名/路由/窗键/栅栏头均随开源改名：`dsh-session-batch-manager`、`/dsh-session-batch-manager/v1`、`__DSH_SESSION_BATCH_MANAGER__`、`x-dsh-session-batch-manager`）。流程：`remove-plugin`（原 link 安装）→ `dsh plugin add github:mars401/dsh-session-batch-manager` → 重启 → 全量验证。
+
+| 项 | 结果 |
+|---|---|
+| 安装 | ✅ pnpm 3.4s 拉取 GitHub 包，版本 0.1.0；无 `prepare` 钩子、零构建 |
+| 产物完整性 | ✅ 安装目录仅含 `files` 声明内容（lib/cordis.patch.yml/icon/双 README/LICENSE/CHANGELOG）；`lib/client.js`、`lib/host/index.js` md5 与仓库工作副本**逐字节一致**（6ff992da…/eef7313a…），此前全部测试证据直接迁移 |
+| 墓碑修复随包 | ✅ 安装产物 client.js 含 `tombstoneSource`/`useSyncExternalStore` 订阅链 |
+| Loader 装配 | ✅ dump-config 出现插件行（routeBase 等 5 个 config 键）；启动日志零错误 |
+| 路由 | ✅ `GET /status` 200 `{ok,service:"dsh-session-batch-manager",version:"0.1.0"}`；旧路由 `/dsh-session-batch/v1/status` 404（无残留）；`GET /stats` 契约正常 |
+| index-inject | ✅ `__DSH_SESSION_BATCH_MANAGER__ = {routeBase,version,statsPollIntervalMs:5000}` |
+| 信任栅栏 | ✅ 无头 403；**旧头名 `x-dsh-session-batch` 403**（改名一致、无旧名绕过）；新头放行 |
+| 数据循环 | ✅ 注入 3 个合成会话 → stats 列出（n=4，含用户 live 会话 model=`qwen/deepseek-v4-pro`，live 观察与模型抽取正常）→ 新头删除 3/3 ok → prune 收敛至仅剩用户 live 会话；用户会话分毫未动 |
+
+**结论：GitHub 全新安装与本地目录安装的验证结果完全一致，零构建开箱可用成立。** GUI 三项冒烟（批量操作、面板打开、面板删除行消失）仍需真人在沙箱 GUI 点验——见 §F 清单（路由已改名，行为不变）。
+
 ## 测试数据与方法附注
 
 - 造数方法：克隆真实会话日志并按 dsh JSONL zstd 容器布局重压（帧 1=头行、帧 2=事件体，`ZSTD_c_checksumFlag=1`）；**单帧整文件压缩会被 persistence 判为头帧校验失败而静默跳过**——首轮造数因此不可见，属造数方法问题，非产品缺陷。
+- 合成日志格式硬要求（截图语料注入时实测发现，均非产品缺陷）：`assistant/message` 必须携带 `stream` 字段（空数组即可，usage 走 `data.usage`）；`request/header` 的 `tools` 不能为空数组（省略或至少 1 个工具），否则整读被判 corrupt。生成器留档 `tests/fixtures/gen-screenshot-corpus.mjs`（2026-11-03 自旧快照 `plugins/dsh-session-batch/tests/` 迁入，与 /tmp 副本 md5 一致）。
 - 损坏隔离用例：合法头帧 + 非 zstd 垃圾尾帧 → 可被 list、observe 失败 → `error:"corrupt"` 行。
 - 全部测试语料已经删除路由清场并核验目录归零；原始会话数据无损（token/压力数值与测试前一致）；用户删除原会话发生在其自主 GUI 实测期间，与本轮测试无关。

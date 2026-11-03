@@ -2,7 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
-## 0.1.0 — 2026-11-03
+## 0.1.1 — 2026-11-03
+
+### Fixes
+
+- **Dashboard default filter**: Changed from "All" to "Main sessions" so that subagent sessions are hidden by default (filter tabs remain available for drill-down).
+- **Folder-like row bug**: Untitled sessions no longer display the working-directory basename as their title. The dashboard join now reads `sessions.list.title` (the persisted title projection) and falls back to the session ID instead of the `displayTitle` chain which included a directory-basename fallback. Two real-world empty-shell sessions that previously appeared as `workspace`, `AI`, and `Research` now display their session IDs.
+- **Blank (draft) rows excluded**: Uncommitted draft sessions (`blank === true`) are no longer included in the dashboard row set, matching the sidebar select-all exclusion. Draft rows have no persistence, no data, and no archive/delete semantics.
+- **Truncated title tooltip**: The dashboard title column now wraps the session title in a `Tooltip` (`onlyWhenClipped`, `portal`) so long session IDs (36 chars) are still readable on hover. Matches the existing tooltip on the model column.
+
+### Added
+
+- **`dashboard-rows` module** (`src/client/dashboard-rows.ts`): Extracted `joinDashboardRows` and `filterDashboardRows` as pure, testable functions with no runtime dependencies.
+- **Dashboard row tests** (`tests/dashboard-rows.test.mjs`): 14 contract tests against the real source (no mirrors), covering title fallback, blank exclusion, filter semantics, and tooltip presence.
+- **Corpus fixtures** (`tests/fixtures/`): Session corpus generator (`gen-screenshot-corpus.mjs`) used for acceptance testing.
+- **Acceptance checklist** (`docs/acceptance-session-dashboard-v2.md`): Step-by-step verification guide for the sandbox environment.
 
 First public release.
 

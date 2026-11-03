@@ -25,6 +25,8 @@ import type {
   DashboardFilter, DashboardRow, DashboardState, StatsResponse, TranslateFn,
 } from './types.ts'
 import { BODY_DASHBOARD_CLASS } from './styles.ts'
+import { joinDashboardRows, filterDashboardRows } from './dashboard-rows.ts'
+import type { DashboardJoinInputs } from './dashboard-rows.ts'
 
 export interface DashboardPanelProps {
   readonly open: boolean
@@ -110,37 +112,19 @@ export function DashboardPanel({ open, onToggle, sessions, workspaces, t, sideba
 
   // join 数据
   const rows = useMemo((): DashboardRow[] => {
-    if (data === null || !data.ok) return []
     const byId = sessions.list.getSnapshot().byId
     const ws = workspaces.list.getSnapshot()
-    const archived = new Set(ws.archivedSessionIds)
-    const pinned = new Set(ws.pinnedSessionIds)
-    const tombstones = new Set(sidebarOps.tombstones)
-    return data.sessions
-      .filter(s => !tombstones.has(s.id))
-      .map(s => {
-        const session = byId[s.id]
-        return {
-          id: s.id,
-          title: session?.displayTitle ?? s.id,
-          origin: session?.origin,
-          running: session?.running ?? false,
-          archived: archived.has(s.id),
-          pinned: pinned.has(s.id),
-          updatedAt: session?.updatedAt,
-          stats: s,
-        }
-      })
+    return joinDashboardRows({
+      data,
+      byId,
+      archivedSessionIds: ws.archivedSessionIds,
+      pinnedSessionIds: ws.pinnedSessionIds,
+      tombstones: sidebarOps.tombstones,
+    })
   }, [data, sessions.list, workspaces.list, sidebarOps.tombstones])
 
   const filteredRows = useMemo(() => {
-    return rows.filter(row => {
-      if (filter === 'all') return true
-      if (filter === 'main') return row.origin !== 'subagent' && !row.archived
-      if (filter === 'subagent') return row.origin === 'subagent' && !row.archived
-      if (filter === 'archived') return row.archived
-      return true
-    })
+    return filterDashboardRows(rows, filter)
   }, [rows, filter])
 
   const counts = useMemo(() => {
@@ -478,7 +462,9 @@ function DashboardRowView({ row, selected, onToggle, t }: {
       <td className="dsh-dash-td">
         <div className="dsh-dash-session-cell">
           {row.running && <StateDot state="ongoing" />}
-          <span className="dsh-dash-session-title">{row.title}</span>
+          <Tooltip portal label={row.title} onlyWhenClipped>
+            <span className="dsh-dash-session-title">{row.title}</span>
+          </Tooltip>
           {row.origin === 'subagent' && <Tag tone="info">{t('dash.badge.subagent')}</Tag>}
           {row.archived && <Tag tone="neutral">{t('dash.badge.archived')}</Tag>}
           {row.pinned && <Tag tone="quiet">{t('dash.badge.pinned')}</Tag>}

@@ -143,14 +143,14 @@ config:
 
 - `dashboard-store.ts`（新增，`createSnapshotStore`）：`{ open, filter, selected, stats: { rows, complete, pending, generatedAt, error } }`；
 - `stats-client.ts`（新增）：`fetchStats()`（GET，无自定义头）+ 轮询生命周期（open→启动 interval、close/hidden→清除；unmount 清理定时器——评审必查项）；批量操作完成后立即 `sessions.refresh()` + 手动拉一次 stats（sweep 节流窗内直接命中去重）；
-- join：行 = `stats.sessions` × `sessions.list.byId`（标题/origin/running/updatedAt）× `workspaces.list`（归档/置顶）− `tombstones`。
+- join：行 = `stats.sessions` × `sessions.list.byId`（标题/origin/running/updatedAt）× `workspaces.list`（归档/置顶）− `tombstones` − 未落盘草稿行（`sessions.list` 中 `blank === true`：未落盘、零数据、无归档/删除语义，不进看板行集，也不可被勾选——与侧栏全选的既有排除规则一致）。
 
 ### 5.3 UI 结构（表格，纯 CSS 无图表库）
 
 | 列 | 内容 |
 |---|---|
 | ☑ | 复选（dashboard 选中集；表头全选/清空） |
-| 会话 | 标题（回落 id）+ 徽标：运行中 / 已归档 / 置顶 / subagent |
+| 会话 | 标题（取 `sessions.list` 的 `title` 字段；空值直接回落会话 id，**不经** `displayTitle` 的「项目目录 basename」回落——避免无标题会话伪装成文件夹名）+ 徽标：运行中 / 已归档 / 置顶 / subagent |
 | 模型 | `provider/model`，无 → 「—」 |
 | token 消耗 | 四桶合计（紧凑格式 12.3k），详情气泡分桶 |
 | 缓存 | 读 / 写 两数 |

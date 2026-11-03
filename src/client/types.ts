@@ -35,6 +35,8 @@ export interface SessionRowSummary {
   readonly blank?: boolean
   readonly origin?: string
   readonly displayTitle?: string
+  /** 持久化标题投影；空值时标题回落 id（按设计文档 §5.3，不经 displayTitle 的目录回落链）。 */
+  readonly title?: string
   readonly running?: boolean
   readonly cwd?: string
   readonly updatedAt?: number

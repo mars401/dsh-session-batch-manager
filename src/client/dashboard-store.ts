@@ -15,7 +15,7 @@ import type {
 /** 初始状态。 */
 const INITIAL: DashboardState = {
   open: false,
-  filter: 'all',
+  filter: 'main',
   selected: [],
   busy: null,
   confirmDelete: null,
