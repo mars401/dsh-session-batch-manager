@@ -22,12 +22,12 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/gwxox/dsh-session-batch-manager.git"
+    "url": "git+https://github.com/mars401/dsh-session-batch-manager.git"
   },
   "bugs": {
-    "url": "https://github.com/gwxox/dsh-session-batch-manager/issues"
+    "url": "https://github.com/mars401/dsh-session-batch-manager/issues"
   },
-  "homepage": "https://github.com/gwxox/dsh-session-batch-manager",
+  "homepage": "https://github.com/mars401/dsh-session-batch-manager",
   "type": "module",
   "icon": "./icon.svg",
   "engines": {

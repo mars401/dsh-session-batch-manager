@@ -3,7 +3,7 @@
 English | [中文](README.zh.md)
 
 [![DeepSeek Harness](https://img.shields.io/badge/DeepSeek%20Harness-upstream-1082ff)](https://github.com/deepseek-ai/deepseek-harness)
-[![GitHub](https://img.shields.io/badge/GitHub-repository-blue)](https://github.com/hkkz9522/dsh-session-batch-manager)
+[![GitHub](https://img.shields.io/badge/GitHub-repository-blue)](https://github.com/mars401/dsh-session-batch-manager)
 
 ## 0 Overview
 
@@ -63,7 +63,7 @@ The repository ships prebuilt bundles under `lib/` (committed), so no build step
 ### 4.1 Install from GitHub via CLI
 
 ```sh
-dsh plugin --profile web add github:hkkz9522/dsh-session-batch-manager
+dsh plugin --profile web add github:mars401/dsh-session-batch-manager
 ```
 
 Restart DSH Web after installation. If the browser still loads an older client bundle, use `Ctrl+Shift+R` to force-refresh the page.

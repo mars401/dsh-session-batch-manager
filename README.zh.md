@@ -3,7 +3,7 @@
 [English](README.md) | 中文
 
 [![DeepSeek Harness](https://img.shields.io/badge/DeepSeek%20Harness-宿主-1082ff)](https://github.com/deepseek-ai/deepseek-harness)
-[![GitHub](https://img.shields.io/badge/GitHub-仓库-blue)](https://github.com/hkkz9522/dsh-session-batch-manager)
+[![GitHub](https://img.shields.io/badge/GitHub-仓库-blue)](https://github.com/mars401/dsh-session-batch-manager)
 
 ## 0 简介
 
@@ -63,7 +63,7 @@ DSH GUI 原生只有单个会话的归档，没有任何删除入口。本插件
 ### 4.1 通过 CLI 从 GitHub 安装
 
 ```sh
-dsh plugin --profile web add github:hkkz9522/dsh-session-batch-manager
+dsh plugin --profile web add github:mars401/dsh-session-batch-manager
 ```
 
 安装后重启 DSH Web。若浏览器仍加载旧的客户端代码，可使用 `Ctrl+Shift+R` 强制刷新。
