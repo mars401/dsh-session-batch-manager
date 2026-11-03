@@ -46,5 +46,4 @@ First public release.
 
 ### Compatibility
 
-- Verified with DSH 0.2.2-alpha.2 (dev sandbox profile).
-- Desktop App (0.2.1-rc.3) not verified; sandbox + source 0.2.2-alpha.2 is the development baseline.
+- **compat**: Verified with DSH 0.2.2-alpha.2 (Web UI, dev sandbox profile). Desktop App (0.2.1-rc.3) not verified; sandbox + source 0.2.2-alpha.2 is the development baseline.

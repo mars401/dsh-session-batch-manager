@@ -48,13 +48,13 @@
     "README.md",
     "README.zh.md",
     "LICENSE",
-    "CHANGELOG.md",
-    "scripts/heal-v2-sessions.ps1"
+    "CHANGELOG.md"
   ],
   "scripts": {
     "build": "node scripts/build.mjs",
     "watch": "node scripts/build.mjs --watch",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "node --test tests/stats.test.mjs"
   },
   "dsh": {
     "bundle": {
