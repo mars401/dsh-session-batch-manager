@@ -13,7 +13,7 @@ The DSH GUI natively offers per-session archiving only — there is no delete en
 
 - a per-row checkbox **revealed by the Batch toggle** at the bottom of the sidebar (selection survives leaving the mode and is cleared automatically when a batch operation completes);
 - a floating toolbar with select-all / clear / archive / delete, **stop-and-archive retry** for sessions with running work, and a **physical delete** pipeline (host route + confirmation dialog + immediate row removal in every connected GUI);
-- a **Session management** panel: a 6-column table (model, 4-bucket token usage, cache read/write, context-pressure progress bar), 4 filter views, in-panel batch operations, progressive loading and 5-second polling.
+- a **Session management** panel: a 6-column table (model, 4-bucket token usage, cache read/write, context-pressure progress bar), two-pane tree view (main / archived) with collapsible subagent nesting, fork sessions as independent tree roots, lineage-based archive/delete cascade, and a **recall** banner + checklist for re-attaching ungrouped sessions to workspaces.
 
 Verified with DSH 0.2.2-alpha.2 (Web UI, dev sandbox); see [6 Compatibility](#6-compatibility).
 
@@ -41,8 +41,8 @@ Verified with DSH 0.2.2-alpha.2 (Web UI, dev sandbox); see [6 Compatibility](#6-
 
 A gauge-icon button at the bottom of the sidebar opens a full-screen, read-only **Session management** panel that scans every local session:
 
-- **6-column table**: checkbox / session (title + running / subagent / archived / pinned badges) / model (`provider/model`) / token usage (4-bucket total, per-bucket tooltip) / cache read · write / context pressure percentage (progress bar, warning color at ≥ 90%).
-- **4 filter chips**: **All / Main / Subagents / Archived** with live counts. Switching a filter clears the panel's selection set (independent from the sidebar's).
+- **6-column table**: checkbox / session (title + running / subagent / archived / pinned badges + collapsible tree) / project / model (`provider/model`) / token usage (4-bucket total, per-bucket tooltip) / cache read · write / context pressure percentage (progress bar, warning color at ≥ 90%).
+- **Two-pane filter**: **Main** (default, tree view with subagents nested under parent sessions) / **Archived** with live counts. Fork sessions are independent tree roots with full operation parity. Switching a pane clears the panel's selection set (independent from the sidebar's).
 - **In-panel batch operations**: archive / unarchive / delete reuse the same core pipeline as the sidebar, with their own selection.
 - **Progressive loading**: the first sweep is O(all logs) — skeleton rows first, then rows appended newest → oldest while the pending count decreases and a thin progress bar advances. Afterwards only sessions whose revision changed are replayed. The stats route responds immediately (fire-and-forget sweep) instead of blocking.
 - **5-second polling** while the panel is open, paused when the tab is hidden (configurable via `statsPollIntervalMs`); zero host overhead while the panel is closed.
@@ -73,7 +73,7 @@ Verify the installation:
 
 ```sh
 curl -s http://127.0.0.1:<your-dsh-web-port>/dsh-session-batch-manager/v1/status
-# {"ok":true,"service":"dsh-session-batch-manager","version":"0.1.1"}
+# {"ok":true,"service":"dsh-session-batch-manager","version":"0.2.0"}
 ```
 
 > The `desktop` profile is managed by the official Desktop app and is not intended to be modified with the regular `dsh` CLI. Desktop users should install the plugin through **Plugins** in the app.
@@ -131,7 +131,7 @@ Delete is evaluated **per session, independently** — one failure never affects
 
 | DeepSeek Harness (DSH) | dsh-session-batch-manager | Verified environment |
 | :--- | :--- | :--- |
-| **>=0.2.1** | `0.1.1` | Web UI (dev sandbox 0.2.2-alpha.2 — fully verified); Desktop App 0.2.1-rc.5 — coupling points statically verified, runtime TBD |
+| **>=0.2.1** | `0.2.0` | Web UI (dev sandbox 0.2.2-alpha.2 — fully verified); Desktop App 0.2.1-rc.5 — coupling points statically verified, runtime TBD |
 
 The plugin declares `dsh: ">=0.2.1"` in `engines`. **0.2.2-alpha.2** (dev sandbox, Web UI) has been fully verified end-to-end. **Desktop App 0.2.1-rc.5**: all seven coupling points (slots, services, events, `sessionQuery`) are present in the app bundle — static grep confirmation, runtime verification pending. Core features (batch archive/delete, sidebar checkboxes) use stable APIs available since 0.2.1. The session management dashboard stats use `sessionQuery`; on builds where this service is unavailable the panel degrades gracefully to list + batch operations (see `degraded` flag).
 

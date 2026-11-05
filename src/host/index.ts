@@ -47,7 +47,8 @@ import { BATCH_HEADER, isTrustedBatchRequest } from './trust.ts'
 import { SessionStatsAggregator } from './stats.ts'
 import type {
   DeleteResult, HostContextLike, HttpRequestLike, HttpResponseLike,
-  SessionPersistenceLike, SessionStoreLike, WebServerLike, WorkspaceRegistryLike,
+  RecallResult, SessionPersistenceLike, SessionStoreLike, WebServerLike, WorkspaceRegistryLike,
+  WorkspaceRegistryRecallLike, WorkspaceEntityRecallLike,
 } from './types.ts'
 
 /** 插件名。 */
@@ -150,7 +151,13 @@ export function apply(ctx: Context, config: ResolvedConfig): void {
       path: `${routeBase}/stats`,
       handler: (req, res) => { handleStats(req, res, aggregator) },
     })
+    const disposeRecall = webServer.register({
+      kind: 'exact',
+      path: `${routeBase}/recall`,
+      handler: (req, res) => { handleRecall(host, req, res, fence, config.maxBatchSize) },
+    })
     childCtx.effect(() => () => {
+      disposeRecall()
       disposeStats()
       disposeDelete()
       disposeStatus()
@@ -412,4 +419,105 @@ async function handleStats(
     generatedAt: Date.now(),
     ...result,
   })
+}
+
+/**
+ * `POST <base>/recall`：召回未分组会话到对应工作区。
+ *
+ * 客户端提交 cwd + sessionIds，宿主按 cwd 查找已注册工作区（D21：不凭空创建），
+ * resolveByPath 失败时转为 200 + per-row `cwd-unresolvable`（D13），
+ * 逐条 attachSession。单条失败不影响其余会话。
+ *
+ * @param ctx - 宿主上下文。
+ * @param req - 请求。
+ * @param res - 响应。
+ * @param fence - 信任栅栏输入。
+ * @param maxBatchSize - 单请求会话数上限。
+ */
+async function handleRecall(
+  ctx: HostContextLike, req: HttpRequestLike, res: HttpResponseLike, fence: Fence, maxBatchSize: number,
+): Promise<void> {
+  try {
+    if (req.method === 'OPTIONS') {
+      sendJson(res, 403, { error: 'forbidden' })
+      return
+    }
+    if (req.method !== 'POST') {
+      sendJson(res, 405, { error: 'method-not-allowed' })
+      return
+    }
+    if (!isTrustedBatchRequest(req.headers, fence)) {
+      sendJson(res, 403, { error: 'untrusted-origin' })
+      return
+    }
+    let body: { cwd?: unknown; sessionIds?: unknown } | null
+    try {
+      body = await readJsonBody(req) as { cwd?: unknown; sessionIds?: unknown } | null
+    } catch {
+      sendJson(res, 400, { error: 'bad-request', message: 'request body must be JSON within the size limit' })
+      return
+    }
+    const rawIds = body?.sessionIds
+    const cwd = body?.cwd
+    if (typeof cwd !== 'string' || cwd.length === 0) {
+      sendJson(res, 400, { error: 'bad-request', message: 'cwd must be a non-empty string' })
+      return
+    }
+    if (!Array.isArray(rawIds) || rawIds.length === 0 || rawIds.length > maxBatchSize) {
+      sendJson(res, 400, { error: 'bad-request', message: `sessionIds must be a non-empty array of at most ${String(maxBatchSize)} entries` })
+      return
+    }
+    const ids = [...new Set(rawIds)]
+    const registry = ctx.get('workspaceRegistry') as WorkspaceRegistryRecallLike | undefined
+    if (registry === undefined) {
+      sendJson(res, 500, { error: 'internal', message: '工作区注册表不可用' })
+      return
+    }
+
+    // 解析工作区（D13+D21：不凭空创建；ENOENT 转 per-row 失败而非整批 400）
+    let workspace: WorkspaceEntityRecallLike
+    try {
+      const resolved = await registry.resolveByPath(cwd)
+      if (resolved === undefined) {
+        // D21：未命中不创建——召回只挂回已注册工作区
+        sendJson(res, 400, { error: 'not-found', message: `未找到工作区：${cwd}` })
+        return
+      }
+      workspace = resolved
+    } catch (error: unknown) {
+      // D13：resolveByPath 抛错（如目录已删 ENOENT）→ 转整批 per-row 失败
+      const message = error instanceof Error ? error.message : String(error)
+      const results: RecallResult[] = ids.map(id => ({
+        sessionId: id,
+        ok: false,
+        code: 'cwd-unresolvable',
+        message: `工作区路径不可解析：${message}`,
+      }))
+      sendJson(res, 200, { results })
+      return
+    }
+
+    // 逐条 attach（单条失败不影响其余；D28：attach-failed 已覆盖非法 id，不预校验）
+    const results: RecallResult[] = []
+    for (const id of ids) {
+      try {
+        await workspace.attachSession(id)
+        results.push({ sessionId: id, ok: true })
+      } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : String(error)
+        // 提取 attachSession 的失败分支码
+        let code = 'attach-failed'
+        if (message.includes('no cwd to validate')) code = 'no-cwd'
+        else if (message.includes('does not resolve')) code = 'cwd-unresolvable'
+        else if (message.includes('is not a directory')) code = 'cwd-not-directory'
+        else if (message.includes('resolves to')) code = 'cwd-mismatch'
+        results.push({ sessionId: id, ok: false, code, message })
+      }
+    }
+    sendJson(res, 200, { results })
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error)
+    ctx.logger?.error(`session-batch-manager: recall request failed: ${message}`)
+    sendJson(res, 500, { error: 'internal', message })
+  }
 }

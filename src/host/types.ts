@@ -135,6 +135,37 @@ export interface DeleteResult {
   readonly message?: string
 }
 
+/** 单个会话的召回结果。 */
+export interface RecallResult {
+  readonly sessionId: string
+  readonly ok: boolean
+  /** 失败分类：见 attachSession 的抛出分支。 */
+  readonly code?: string
+  readonly message?: string
+}
+
+/** `workspaceRegistry` 中 recall 路由需要的成员。 */
+export interface WorkspaceRegistryRecallLike {
+  /** 按规范路径查找已有的工作区；不存在时返回 undefined。 */
+  resolveByPath(path: string): Promise<WorkspaceEntityRecallLike | undefined>
+  /**
+   * 按规范路径创建工作区；路径对应的目录必须已存在。
+   * @param path - 已做 realpath 规范化的目录路径。
+   * @param title - 可选工作区显示标题。
+   * @returns 工作区实体。
+   */
+  create(path: string, title?: string): Promise<WorkspaceEntityRecallLike>
+}
+
+/** 一个工作区实体里 recall 路由用到的成员。 */
+export interface WorkspaceEntityRecallLike {
+  readonly id: string
+  readonly path: string
+  readonly sessionIds: readonly string[]
+  /** 把会话挂到本工作区（校验 cwd → 路径相等后记账）。 */
+  attachSession(sessionId: string): Promise<void>
+}
+
 // === stats 聚合器类型（新增，不改变既有接口） ===
 
 /** `sessionQuery` 服务里 stats 聚合器用到的成员。 */

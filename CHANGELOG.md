@@ -2,7 +2,40 @@
 
 All notable changes to this project will be documented in this file.
 
-## 0.1.1 — 2026-11-03
+## 0.2.0 — 2026-11-05
+
+### Features
+
+- **Session dashboard panel** (`shell.overlay`): Full-screen session management table with token usage, cache hit, and context pressure visualization. Stats backend with auto-polling, real-time aggregation, and concurrency capping.
+- **Two-pane tree view** (main / archived): Main sessions are shown as tree roots with their subagents nested underneath (collapsible, depth-1 flatten). The archived pane shows archived sessions with lineage-archived descendants in grey. Fork sessions are independent tree roots with full checkbox/archive/restore/delete parity.
+- **Lineage-based archive/delete cascade**: Archiving or deleting a main session cascades to all its subagent descendants. Lineage propagation stops at non-subagent (fork) rows. The delete confirmation dialog names the exact descendant count.
+- **Recall banner** (`dash.recall.*`): Banner detects new workspaces added since the plugin's startup baseline snapshot and offers a one-click "Recall" workflow — a checklist of ungrouped sessions ready for workspace attachment, with per-line lineage subagent counts (parentId chain, not cwd proximity).
+- **Recall checklist mode**: Four-column table (checkbox, title, updated-at YYYY-MM-DD, cwd) with select-all, bottom action bar ("Cancel" + "Recall {k} sessions"), focus management (entry→back button, exit→banner View button or close), and <760px responsive rules (timestamp/cwd collapse, cwd merges into title sub-line).
+- **POST /recall route**: Host-side endpoint with trust gating (`isTrustedBatchRequest`), `resolveByPath` workspace lookup (no implicit creation), `attachSession` per-row with five failure branches (`cwd-unresolvable`, `cwd-not-directory`, `cwd-mismatch`, `no-cwd`, `attach-failed`), and mixed-batch tolerance (one failure does not block others).
+
+### Fixes
+
+- **Δ=0 contract**: Dashboard session count now matches the sidebar visible main session count. Subagents are nested under their parent row and are not counted as independent chips. Old "All / Subagents" filters removed; chips now show "Main N / Archived M".
+- **Row-set flip**: Stats-only sessions (header present but not in `sessions.list`) are no longer emitted as orphaned rows. The join direction was reversed from left-join(stats, sessions) to inner-join(sessions, stats), matching the original design intent.
+- **Blank draft exclusion**: Sessions with `blank === true` are excluded from the dashboard row set with a single-key check, consistent with the sidebar select-all exclusion. No per-field heuristics.
+- **Title display**: Dashboard titles now use the persisted `title` projection with a plain id fallback, never the `displayTitle` chain which included a directory-basename fallback.
+- **Truncated title tooltip**: Title column wrapped in `Tooltip` (`onlyWhenClipped`, `portal`) so long session IDs are readable on hover.
+- **Cascade truncation guard** (TC-22): Source-level assertion that `.parentId` is only used in `parentDisplay` and fork Tag blocks within `DashboardPanel.tsx` — cascade/lineage propagation only traverses the `buildTree` children map.
+
+### Added
+
+- **`dashboard-rows` module**: Extracted `joinDashboardRows` and `filterDashboardRows` as pure, testable functions.
+- **`dashboard-tree` module**: Extracted `buildTree`, `visibleRows`, `descendantsOf` as pure functions — lineage tree construction, flatten, and fork truncation.
+- **`dashboard-recall` module**: Extracted `computeRecallCandidates` as a pure function — cwd-based grouping, parentId-chain lineage counting with fork boundary.
+- **`dashboard-store` module**: Dashboard panel state store with filter/selection/expand/recall-mode/baseline management.
+- **Contract test suites** (67 tests across 6 suites):
+  - `tests/dashboard-rows.test.mjs` (20 tests): Title fallback, blank exclusion, filter semantics, tooltip presence, cascade truncation source guard.
+  - `tests/dashboard-tree.test.mjs` (20 tests): Tree construction, flatten, fork root parity, lineage archive, children invariant (filters-order independent).
+  - `tests/dashboard-recall.test.mjs` (17 tests): Recall candidate grouping, cwd normalization, lineage counting with fork truncation.
+  - `tests/dashboard-stats.test.mjs` (10 tests): Stats aggregator revision skip, concurrency cap, dedup throttle, error isolation.
+  - `tests/fixtures/`: Corpus generators and verification scripts for acceptance testing.
+- **Acceptance docs**: `docs/acceptance-session-dashboard-v3.md`, `docs/acceptance-session-dashboard-v4.md`, `docs/design-session-dashboard.md`, `docs/ui-session-dashboard.md`.
+- **I18n**: `dash.recall.*` (11 keys), `notice.code.cwd-*` (5 keys), `dash.fork.tag` / `dash.fork.origin` (2 keys), plus fork Tag and new filter chip labels. Removed dead keys `dash.filter.all` / `dash.filter.subagent` / `dash.recall.failureDetail`.
 
 ### Fixes
 

@@ -43,7 +43,7 @@
 
 import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
+import { readFileSync, readdirSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -136,6 +136,7 @@ function inputs(sessions, overrides = {}) {
       updatedAt: s.updatedAt ?? 0,
       ...(s.cwd === undefined ? {} : { cwd: s.cwd }),
       ...(s.title === undefined ? {} : { title: s.title }),
+      ...(s.parentId === undefined ? {} : { parentId: s.parentId }),
       // 上游 displayTitleOf 的产物：无标题时是 cwd basename
       displayTitle: s.displayTitle
         ?? (s.title !== undefined
@@ -157,6 +158,8 @@ function inputs(sessions, overrides = {}) {
         ...(overrides.extraStats ?? []),
       ],
     },
+    // v0.2: ids = Host-list 成员（非子代理），子代理仅存在于 byId（不挂账）
+    ids: sessions.filter(s => s.origin !== 'subagent').map(s => s.id),
     byId,
     archivedSessionIds: sessions.filter(s => s.archived === true).map(s => s.id),
     pinnedSessionIds: sessions.filter(s => s.pinned === true).map(s => s.id),
@@ -239,12 +242,12 @@ describe('看板行集与标题契约（问题二）', () => {
     assert.equal(row.stats.error, null, '空壳不是读取失败行，不得显示告警图标')
     // 组件派生守卫：四列在 null 时都落到 '—'
     for (const branch of [
-      "{hasError ? '—' : (",
+      "{hasError ? (",
       'hasError || tokenTotal === null',
       'hasError || stats.usage === null',
       'hasError || ctxPercent === null || ctxWindow === undefined',
     ]) {
-      assert.ok(panelSource.includes(branch), `DashboardPanel.tsx 的 '${branch}' 分支已改动：请复核空壳行的「—」渲染`)
+      assert.ok(panelSource.includes(branch), `DashboardPanel.tsx 的 '${branch}' 分支已改动：请复核空壳行的「—」渲染（v0.2 已加 sr-only 包裹）`)
     }
   })
 
@@ -252,20 +255,23 @@ describe('看板行集与标题契约（问题二）', () => {
 
   it('TC-07 blank 草稿会话不产生看板行', () => {
     const { joinDashboardRows } = seam()
+    // v0.2: sub-0004/sub-0005 是孤儿子代理（无 parentId、无 ids 挂靠）→ 不发射。
+    // 预期仅 3 行：3 条主会话，blank 草稿被排除。
     const rows = joinDashboardRows(inputs(MIXED))
     assert.ok(!rows.some(r => r.id === 'session-draft-0006'), 'blank 草稿行必须从行集整体排除（design §5.2）')
-    assert.equal(rows.length, MIXED.length - 1)
+    assert.equal(rows.length, 3)
   })
 
   it('TC-08 blank 草稿不可被全选/勾选（任何过滤档）', () => {
     const { joinDashboardRows, filterDashboardRows } = seam()
     const rows = joinDashboardRows(inputs(MIXED))
-    // 看板全选的输入集合就是 filteredRows.map(r => r.id)（DashboardPanel.tsx:272）
-    for (const filter of ['all', 'main', 'subagent', 'archived']) {
+    // v0.2 两档：main / archived
+    for (const filter of ['main', 'archived']) {
       const ids = filterDashboardRows(rows, filter).map(r => r.id)
       assert.ok(!ids.includes('session-draft-0006'), `${filter} 档的全选集合不得包含 blank 草稿`)
     }
-    assert.ok(panelSource.includes('store.selectAll(filteredRows.map(r => r.id))'), 'DashboardPanel.tsx 的全选取值已改动：请复核本用例')
+    // v0.2 selectAll 收敛到主会话行
+    assert.ok(panelSource.includes('origin !== \'subagent\''), 'DashboardPanel.tsx 的 selectAll 应仅选主会话行')
   })
 
   it('TC-09 blank 草稿即使带归档标记也不进行集', () => {
@@ -297,15 +303,13 @@ describe('看板行集与标题契约（问题二）', () => {
     assert.deepEqual(rows.map(r => r.id), ['session-live'])
   })
 
-  it('TC-12 四档过滤语义（保护问题一的 main 默认修复）', () => {
+  it('TC-12 两档过滤语义（v0.2：砍 all/subagent，留 main+archived）', () => {
     const { joinDashboardRows, filterDashboardRows } = seam()
     const rows = joinDashboardRows(inputs(MIXED))
+    // v0.2: sub-0004/sub-0005 是孤儿子代理（无 parentId）→ join 层不发射
+    assert.equal(rows.length, 3, '只有 3 条主会话（孤儿子代理不发射）')
     const ids = filter => filterDashboardRows(rows, filter).map(r => r.id).sort()
-    assert.deepEqual(ids('all'), [
-      'session-main-arch-0003', 'session-main-shell-0002', 'session-main-titled-0001', 'sub-0004', 'sub-0005',
-    ])
     assert.deepEqual(ids('main'), ['session-main-shell-0002', 'session-main-titled-0001'])
-    assert.deepEqual(ids('subagent'), ['sub-0004', 'sub-0005'])
     assert.deepEqual(ids('archived'), ['session-main-arch-0003'])
   })
 
@@ -324,25 +328,205 @@ describe('看板行集与标题契约（问题二）', () => {
   })
 
   it('TC-14 标题列被 onlyWhenClipped 的 Tooltip 包裹（ui §5.1 截断时显示全文）', () => {
-    const titleSpan = '<span className="dsh-dash-session-title">{row.title}</span>'
+    // v0.2 起标题 span 的 className 是条件表达式（子代理行降层），锚点随之更新，
+    // 但断言强度不降：仍须证明「包裹」而非「并列」，且 openOnClick 禁令作用域限定在标题这一个 Tooltip 上
+    // （文件里另有 4 处合法的 openOnClick：项目列 / Token / 缓存 / 上下文，属数值明细类，ui §15.4）。
+    const titleSpan = "<span className={isSub ? 'dsh-dash-session-title dsh-dash-session-title-sub' : 'dsh-dash-session-title'}>{row.title}</span>"
     const at = panelSource.indexOf(titleSpan)
-    assert.ok(at >= 0, '标题 span 结构已变：请复核本用例')
-    // 模型列（DashboardPanel.tsx 的 .dsh-dash-model-col）的既有写法就是模板：
-    // <Tooltip portal label={…} onlyWhenClipped>
+    assert.ok(at >= 0, '标题 span 结构已变：请复核本用例（锚点是含子代理降层 className 三元表达式的整个 span）')
     const openTag = panelSource.slice(0, at).match(/<Tooltip[^>]*>\s*$/)
     assert.ok(
       openTag !== null,
       '标题 span 前必须紧跟 <Tooltip …> 开标签（ui §5.1：截断时 Tooltip 显示完整标题）；'
-      + `实际前置文本：${JSON.stringify(panelSource.slice(Math.max(0, at - 120), at))}`,
+      + `实际前置文本：${JSON.stringify(panelSource.slice(Math.max(0, at - 160), at))}`,
     )
     const tag = openTag[0]
     assert.match(tag, /\bportal\b/, 'ui §2 层级表：面板内 Tooltip 必须用 portal 变体（非 portal z=100 会被面板盖住）')
     assert.match(tag, /label=\{row\.title\}/, 'Tooltip label 必须是 row.title（完整标题或回落的会话 id），否则悬停看到的不是全文')
     assert.match(tag, /\bonlyWhenClipped\b/, 'ui §5.1：只在真被截断时显示（原语按 scrollWidth > clientWidth 判定）')
-    // 闭合标签紧随 span → 证明是「包裹」而不是「并列在前」
     const after = panelSource.slice(at + titleSpan.length).replace(/^\s+/, '')
     assert.ok(after.startsWith('</Tooltip>'), `标题 span 后必须紧跟 </Tooltip>；实际：${JSON.stringify(after.slice(0, 40))}`)
-    // ui §10 触屏策略：标题截断属「纯辅助类」，触屏不显示；openOnClick 是数值明细类的做法
     assert.ok(!/\bopenOnClick\b/.test(tag), 'ui §10：标题截断属纯辅助类，触屏不显示，不得加 openOnClick')
+  })
+
+  it('TC-16 五处「—」占位都带 sr-only 的 dash.noData（ui §15.4 引 §5.6）', () => {
+    // 项目列 + 模型 + Token + 缓存 + 上下文。视觉「—」aria-hidden，读屏读 dash.noData。
+    const n = (panelSource.match(/t\('dash\.noData'\)/g) ?? []).length
+    assert.equal(n, 5, `dash.noData 的引用数应为 5（五个占位列），实为 ${n}；列结构变了请复核本用例`)
+    const hidden = (panelSource.match(/<span aria-hidden="true"[^>]*>—<\/span>/g) ?? []).length
+    assert.ok(hidden >= 5, `视觉「—」应带 aria-hidden（避免读屏读到裸破折号），实为 ${hidden} 处`)
+  })
+
+  it('TC-18 全量 titleOf 不得采信 displayTitle（design §12 规则一+规则二，D7/D9 防止第三次复现）', () => {
+    // §12 规则一：任何渲染会话标题的面一律 title || id，禁止 displayTitle。
+    // D7 修了 DashboardPanel.titleOf，D9 修了 ops.ts 的 titleOf（侧栏 notice）。
+    // 本断言扫描 src/client/ 下所有 .ts 文件，找到每一个 titleOf 定义，逐一定向钉住。
+    const clientDir = join(repoRoot, 'src/client')
+    const files = readdirSync(clientDir).filter(f => f.endsWith('.ts') || f.endsWith('.tsx'))
+    let violations = 0
+    for (const file of files) {
+      const src = readFileSync(join(clientDir, file), 'utf8')
+      // 找所有 const titleOf = ... 或 const titleOf = ( ... 定义
+      const re = /const titleOf\s*=\s*(?:useCallback\()?\s*(?:\([^)]*\)|async\s*\([^)]*\))\s*(?::\s*\w+)?\s*=>\s*\{/g
+      let m
+      while ((m = re.exec(src)) !== null) {
+        const fnStart = m.index
+        // 简版：从 { 到下一个独立 }（函数体结束）
+        let depth = 1
+        let i = fnStart + m[0].length - 1 // 站在开 {
+        while (depth > 0 && i < src.length) {
+          if (src[i] === '{') depth++
+          else if (src[i] === '}') depth--
+          i++
+        }
+        const fnBody = src.slice(fnStart, i)
+        // 剔除注释后检查
+        const cleaned = fnBody.replace(/\/\/.*/g, '').replace(/\/\*[\s\S]*?\*\//g, '')
+        if (cleaned.includes('displayTitle')) {
+          violations++
+          console.error(`FAIL: ${file} 的 titleOf 函数体含 displayTitle（去注释后）：\n${cleaned.slice(0, 200)}…`)
+        }
+        if (!/(?:byId\[[^\]]+\]|row|session)\?\.title/.test(cleaned)) {
+          violations++
+          console.error(`FAIL: ${file} 的 titleOf 未取 row?.title：\n${cleaned.slice(0, 200)}…`)
+        }
+      }
+    }
+    assert.equal(violations, 0,
+      `${violations} 处 titleOf 定义违反 design §12 规则一——`
+      + `禁止 displayTitle（用持久化 title || id），且必须取 row?.title。`
+      + `\n扫描目录：src/client/（${files.length} 个 ts/tsx 文件）`)
+  })
+
+  /**
+   * 剔除注释、**保留字符串字面量**的源码净化器（§12 守卫用）。
+   *
+   * 为什么不用 `.replace(/\/\/.*$/gm, '')` 那种正则：它会误伤字符串里的 `//`（URL、路由前缀），
+   * 也会被注释里的引号带偏。这里走状态机，逐字符判定 code / 行注释 / 块注释 / 三种引号。
+   * 字符串必须保留——`row["displayTitle"]` 这种写法同样是运行时消费，不能因为净化被吃掉。
+   */
+  const stripComments = (source) => {
+    let out = ''
+    let state = 'code'
+    for (let i = 0; i < source.length; i++) {
+      const c = source[i]
+      const c2 = source[i + 1]
+      if (state === 'code') {
+        if (c === '/' && c2 === '/') { state = 'line'; i++; continue }
+        if (c === '/' && c2 === '*') { state = 'block'; i++; continue }
+        if (c === "'") state = 'sq'
+        else if (c === '"') state = 'dq'
+        else if (c === '`') state = 'tpl'
+        out += c
+        continue
+      }
+      if (state === 'line') { if (c === '\n') { state = 'code'; out += c } continue }
+      if (state === 'block') { if (c === '*' && c2 === '/') { state = 'code'; i++ } continue }
+      out += c
+      if (c === '\\') { out += source[i + 1] ?? ''; i++; continue }
+      if ((state === 'sq' && c === "'") || (state === 'dq' && c === '"') || (state === 'tpl' && c === '`')) state = 'code'
+    }
+    return out
+  }
+
+  it('TC-20 src/client 运行时零 displayTitle 消费（§12 规则一全局守卫，不限函数名）', () => {
+    // 比 TC-18 更狠：TC-18 只钉名叫 titleOf 的函数体，本条钉**整个 src/client**——
+    // 任何面以任何写法（内联 byId[id]?.displayTitle、别名函数、解构）重新引入都会变红。
+    // 产品经理 2026-11-04 拍板：意图是「任何面以任何函数名重新引入」都拦住。
+    const clientDir = join(repoRoot, 'src/client')
+    const files = readdirSync(clientDir).filter(f => f.endsWith('.ts') || f.endsWith('.tsx')).sort()
+    assert.ok(files.length >= 10, `src/client 下应至少有 10 个源文件，实为 ${files.length}——目录结构变了请复核本用例`)
+    const offenders = []
+    for (const file of files) {
+      const code = stripComments(readFileSync(join(clientDir, file), 'utf8'))
+      const hits = (code.match(/displayTitle/g) ?? []).length
+      if (file === 'types.ts') {
+        // 唯一豁免：宿主契约的**类型声明**（形状必须与宿主一致，声明不是消费）。
+        // 数量钉死，兼作净化器的自检——净化失灵会让 hits 掉到 0 而静默通过。
+        assert.equal(hits, 2, 'types.ts 应恰有 2 处 displayTitle 类型声明（SessionRowSummary 字段 + 宿主 context-menu target 形状）；'
+          + `实为 ${hits}——要么契约变了，要么净化器失灵，请复核`)
+        assert.equal((code.match(/displayTitle\?:\s*string/g) ?? []).length, hits,
+          'types.ts 里的 displayTitle 必须全部处于类型声明位（displayTitle?: string），不得有运行时消费')
+        continue
+      }
+      if (hits > 0) offenders.push(`${file}：${hits} 处`)
+    }
+    assert.deepEqual(offenders, [],
+      'design §12 规则一：任何渲染会话标题的面一律 title || id，禁止采信 displayTitle'
+      + '（其回落链是 持久化 title → 项目目录 basename → id，会把无标题会话显示成文件夹名，即用户报的「问题二」）。'
+      + `\n仍在运行时消费 displayTitle 的文件：${offenders.join('；')}`
+      + '\n修法：改取 ?.title，并按 TC-21 保留空串兜底。')
+  })
+
+  it('TC-21 titleOf 必须接住空串标题，且 TC-18 的扫描不得空转', () => {
+    // ① 空串兜底：displayTitle 的回落链永不返回空串，所以旧代码没这个需求；改取 title 之后
+    //    「字段存在但是空串」成了可能值，而 `??` 只接 undefined/null → notice 里会出现空白会话名。
+    const opsSource = readFileSync(join(repoRoot, 'src/client/ops.ts'), 'utf8')
+    for (const [name, src, anchor] of [
+      ['DashboardPanel.tsx', panelSource, 'const titleOf = useCallback((id: string): string => {'],
+      ['ops.ts', opsSource, 'const titleOf = (sessionId: SessionIdString): string => {'],
+    ]) {
+      const at = src.indexOf(anchor)
+      assert.ok(at >= 0, `${name} 的 titleOf 定义位已移动：请更新本断言锚点`)
+      const body = stripComments(src.slice(at, at + 400))
+      assert.ok(body.includes("!== ''") || /\|\|\s*(?:id|sessionId)\b/.test(body),
+        `${name} 的 titleOf 必须接住空串标题（` + '`?? id` 不够，要 `|| id` 或显式 !== ""）。当前函数体：'
+        + JSON.stringify(body.slice(0, 220)))
+    }
+    // ② 防空转：TC-18 靠正则匹配 titleOf 的**定义形态**，形态一变（例如改成 function 声明）
+    //    就会「扫到 0 个定义 → 0 处违反 → 通过」，守卫静默失效。这里钉住至少扫到 2 个。
+    const clientDir = join(repoRoot, 'src/client')
+    const defRe = /const titleOf\s*=\s*(?:useCallback\()?\s*(?:\([^)]*\)|async\s*\([^)]*\))\s*(?::\s*\w+)?\s*=>\s*\{/g
+    let found = 0
+    for (const file of readdirSync(clientDir).filter(f => f.endsWith('.ts') || f.endsWith('.tsx'))) {
+      found += (stripComments(readFileSync(join(clientDir, file), 'utf8')).match(defRe) ?? []).length
+    }
+    assert.ok(found >= 2, `TC-18 的定义正则只扫到 ${found} 个 titleOf（应 ≥2：面板 + 侧栏 ops）。`
+      + '定义形态变了就更新 TC-18 的正则，别让守卫空转成永久通过。')
+  })
+
+  it('TC-22 截断守卫：DashboardPanel.tsx 剥注释后 .parentId 仅限 parentDisplay 块——级联不得沿 parentId 遍历（fork 终裁第 2 条）', () => {
+    // 血统/级联链在非 subagent 行截断（产品经理 fork 终裁 2026-11-04 第 2 条）：
+    // effectiveArchived 与删除级联的祖先遍历只允许沿 children map 走，
+    // 而 children map 只装 subagent 行——fork 不在任何人的 children 里，故 fork 永不进级联。
+    // 本守卫禁止 DashboardPanel.tsx 在 parentDisplay 块之外使用 .parentId，
+    // 防后人绕过 children map 直走 parentId 链实现级联。
+    const dashSource = stripComments(readFileSync(join(repoRoot, 'src/client/DashboardPanel.tsx'), 'utf8'))
+    // 定位 parentDisplay 块（第一个合法出处——子代理行小字渲染）
+    const pdStart = dashSource.indexOf('const parentDisplay = (isSub && row.parentId)')
+    assert.ok(pdStart >= 0, 'parentDisplay 块锚点已移动：请更新本断言')
+    const afterPd = dashSource.slice(pdStart)
+    const pdEndMatch = afterPd.match(/\}\)\(\)\s*:\s*null/)
+    assert.ok(pdEndMatch, 'parentDisplay 块结束位已移动：请更新本断言')
+    const pdBlock = dashSource.slice(pdStart, pdStart + pdEndMatch.index + pdEndMatch[0].length)
+
+    // 定位 fork Tag 块（第二个合法出处——fork「派生」Tag 渲染，纯显示非级联）
+    // 锚点：`{!isSub && row.parentId` 是 fork Tag 的条件（唯一出现位）
+    const forkTagStart = dashSource.indexOf('{!isSub && row.parentId')
+    assert.ok(forkTagStart >= 0, 'fork Tag 块锚点已移动：请更新本断言')
+    // fork Tag 块结束：</Tooltip>)} 闭合
+    const afterFk = dashSource.slice(forkTagStart)
+    const fkEndMatch = afterFk.match(/<\/Tooltip>\s*\)\s*\}/)
+    assert.ok(fkEndMatch, 'fork Tag 块结束位已移动：请更新本断言')
+    const forkTagBlock = forkTagStart >= 0 && fkEndMatch
+      ? dashSource.slice(forkTagStart, forkTagStart + fkEndMatch.index + fkEndMatch[0].length)
+      : ''
+
+    // 扫全文件 .parentId 出现位
+    const parentIdRe = /\.parentId\b/g
+    let m
+    const violations = []
+    while ((m = parentIdRe.exec(dashSource)) !== null) {
+      const pos = m.index
+      if (pos >= pdStart && pos <= pdStart + pdBlock.length) continue
+      if (forkTagBlock.length > 0 && pos >= forkTagStart && pos <= forkTagStart + forkTagBlock.length) continue
+      const line = dashSource.slice(Math.max(0, pos - 60), pos + 60).replace(/\n/g, '↵')
+      violations.push(`pos ${pos}: …${line}…`)
+    }
+    assert.deepEqual(violations, [],
+      'fork 终裁第 2 条违反：DashboardPanel.tsx 在 parentDisplay 块之外使用了 .parentId。\n'
+      + '级联/血统传播只允许沿 buildTree 的 children map 走（fork 不在任何人的 children 里），'
+      + '不得直走 .parentId 链——否则 fork 会被错误纳入级联。\n'
+      + `违规位：\n${violations.join('\n')}`)
   })
 })

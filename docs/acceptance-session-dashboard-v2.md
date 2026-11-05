@@ -85,7 +85,7 @@ curl -s "http://127.0.0.1:<桌面端口>/dsh-session-batch-manager/v1/status"   
 grep -m1 '"version"' ~/.dsh/profiles/desktop/node_modules/dsh-session-batch-manager/package.json
 ```
 
-> ⚠️ **`/status` 的 version 可能与包版本不一致**（v0.1.1 发布件实测：包 `package.json` 是 `0.1.1`，`/status` 却报 `0.1.0`）。原因是版本号由 `scripts/build.mjs` 在**构建期**注入 `__PLUGIN_VERSION__`（`src/host/index.ts:130/189/411` 三处用它），若「先构建、后改版本号」，提交的 `lib/` 里就嵌着旧版本号。所以**以 `package.json` 的 version 为准**，并顺手比对两条输出是否相同；不同即说明产物早于版本号 bump，需重建后重新发布。
+> ⚠️ **`/status` 的 version 要与包版本一致**（v0.1.1 首推件曾不一致：包 `package.json` 是 `0.1.1`、`/status` 报 `0.1.0`，已在 `d577ed7` 重建产物修正，现两者均为 `0.1.1`）。根因值得记着：版本号由 `scripts/build.mjs` 在**构建期**注入 `__PLUGIN_VERSION__`（`src/host/index.ts:130/189/411` 三处用它），所以「先构建、后改版本号」会让提交的 `lib/` 嵌着旧号——**改完版本号必须重建再提交**。核对时以 `package.json` 为准，两条输出不同即说明产物早于版本号 bump。
 
 **同样要确认跑的是修复版**（路径 A 那步在桌面一样适用，把路径换成桌面 profile）：
 

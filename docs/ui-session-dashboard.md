@@ -1,7 +1,7 @@
 # 会话可视化仪表盘（Session Dashboard）· UI/交互规格
 
 > 插件：`@local/dsh-session-batch`（`plugins/dsh-session-batch`）
-> 配套文档：[design-session-dashboard.md](./design-session-dashboard.md)（技术设计，数据流/契约/文件清单以其为准）
+> 配套文档：[design-session-dashboard.md](./design-session-dashboard.md)（技术设计，数据流/契约/文件清单以其为准；v0.2 树形增量见其 §11，**v0.3 修订（两档压平、行集口径、fork 终裁、会话召回）见其 §13——现行最高优先**；对应 UI 规格见本文 §15/§16）
 > 本文管辖：浏览器侧视觉规格、交互行为、状态展示、无障碍与文案键名。
 > 文案键只定**键名 + 中文占位**，最终 zh/en 字典进 `src/client/locales.ts`（英文 sentence case）。
 
@@ -104,6 +104,8 @@
 | 缓存读/写 | 120px，右对齐 | 110px | 100px |
 | 上下文 | 240px | 168px | 150px |
 
+> v0.2：新增「项目」列（七列），列宽/断点增量以 §15.1 为准（本表为 v0.1 原文）。
+
 - 行：高 40px（`(pointer: coarse)` 下 44px）；`td padding: 0 8px`，13px；行分隔 `1px solid var(--dsw-alias-border-l1, rgba(128,128,128,.12))`。
 - 行 hover：`@media (hover: hover)` 下背景 `var(--dsw-alias-interactive-bg-hover, rgba(128,128,128,.18))`（触屏无 hover 残留，dsh 响应式纪律 §6.1）。
 - 行选中：背景 `var(--dsw-alias-bg-multi-select, rgba(59,108,246,.16))`（与侧栏 `.dsh-batch-selected` 同令牌），优先级高于 hover。
@@ -125,6 +127,7 @@
   - 置顶 → `tone="quiet"`（次要事实，最轻），文案 `dash.badge.pinned`「置顶」。
   - 顺序固定如上（重要性递减）；不叠加其他徽标；Tag 自带字号不覆写。窄窗下徽标**不隐藏**（主要状态不可省略），标题截断让位。
 - **per-id error**（stats.error ≠ null）：标题组尾部 `IconWarningOutlineRegular` 12px，色 `var(--dsw-alias-state-warn-label, #f2555a)`；Tooltip（portal）label = `dash.error.<code>` 文案（未知 code 回落宿主 message 再回落 code，同既有 `reasonOf` 模式）；图标带同文案 `aria-label`。该行的模型/Token/缓存/上下文四列显示「—」；**行仍可勾选、可参与归档/删除**（读取失败不影响操作）。
+- v0.2 树形增量：会话列树形化（展开按钮/缩进/连接线/子数徽标）、子代理行视觉降层、子代理档「所属主会话」小字、已归档档行级恢复按钮——见 §15.2 / §15.5 / §15.6。
 
 ### 5.2 模型列
 
@@ -363,4 +366,186 @@
 
 - **Tooltip label 为纯文本**：dsh `Tooltip` 原语的 `label` 类型是 `string | (() => string)`（`TooltipLabel`），不支持 JSX。Token 分桶明细、缓存明细、上下文明细均以换行分隔的 `key: value` 对呈现，信息不删减。
 - **StateDot `state` 属性**：dsh `StateDot` 的 API 是 `state: StateDotState`（`'done' | 'warning' | 'ongoing' | 'error' | 'idle'`），而非 `tone`。运行中指示使用 `state="ongoing"`。
-- **仪表盘选择集状态**使用 `DashboardStore`（`createSnapshotStore`）管理，与侧栏 `BatchState` 完全独立。过滤切换时 store 内部清空选择集。
+- **仪表盘选择集状态**使用 `DashboardStore`（`createSnapshotStore`）管理，与侧栏 `BatchState` 完全独立。过滤切换时 store 内部清空选择集。（v0.2 起改为**档位切换保留选择集**，见 §15 与 design §11.6/§11.9——本条为 v0.1 历史注记。）
+
+## 15. 树形结构与项目列 · UI 增量（v0.2，2026-11-03 定稿）
+
+> 对应 [design-session-dashboard.md](./design-session-dashboard.md) §11（语义以其为准，本节只管像素/交互/文案）。新增类名沿用 `dsh-dash-*` 前缀与 §1 复用纪律（控件优先原语、字重 ≤500、颜色走令牌带回退、双主题人工核验、`prefers-reduced-motion` 降级）。
+> ⚠️ **2026-11-04 用户验收修订**：本节部分规格已被 design §13 修订/废弃（四档→两档、多层树→两层压平、三态勾选取消、§15.5 档位废弃但小字保留在树形子行——见该节修订注记等），逐条处置见 design §13.7；召回 UI 像素级规格见 **§16**（已定稿，2026-11-05 复验对账更新）。
+
+### 15.1 列结构与宽度（对 §4.4 列宽表的增量）
+
+七列 `colgroup`（新增**项目**列，紧随会话列）：
+
+| 列 | ≥1080px | 760–1079px | <760px |
+|---|---|---|---|
+| ☑ 选择 | 40px | 40px | 44px（sticky left 0） |
+| 会话 | auto（min 200px） | auto（min 180px） | auto（min 160px，sticky left 40/44px） |
+| **项目** | **160px** | **120px**（截断） | **隐藏**，并入会话格第二行（见下） |
+| 模型 | 180px | 140px | 隐藏（§10 既有规则，并入会话格第二行） |
+| Token 消耗 | 100px，右对齐 | 100px | 92px |
+| 缓存读/写 | 120px，右对齐 | 110px | 100px |
+| 上下文 | 240px | 168px | 150px |
+
+- <760px 会话格第二行同时承载项目与模型：`{项目 basename} · {模型名}`（11px `--dsw-alias-label-tertiary`，整行截断）；Tooltip（portal，`openOnClick=true`）两行内容 = 项目全路径 / 模型全名，缺一项只显示另一项；
+- 表格 min-width 由 560px 提升至 **640px**（<760px 容器横滚，§10 既有机制）；
+- 其余（表头样式、行高、hover/选中态、行点击=选中、tabular-nums）沿用 §4.4 不变。
+
+### 15.2 会话列树形结构
+
+- **缩进**：`depth × 16px`，以会话格 `padding-left` 实现（不动表格结构）；子行缩进起点绘制「└」连接线（1px `--dsw-alias-border-l2`，纯 CSS，`aria-hidden`）；多级嵌套递归适用，不设深度上限（真实语料 1–2 级）；
+- **展开按钮**（仅 `hasChildren` 行）：位于标题前（缩进之后），视觉 20×20、`(pointer: coarse)` 命中区 ≥24×24；字符 ▸（收起）/ ▾（展开），10px `--dsw-alias-label-secondary`；`aria-expanded` + `aria-label`（`dash.tree.expand` / `dash.tree.collapse`）；`:focus-visible` 焦点环；点击 `stopPropagation`——**行 body 点击仍是切换勾选，两命中区严格分离**（§4.4 例外放行清单加此项）；
+- **子数徽标（仅树形「全部」档渲染，平面档无**——design §11.5 平面档规范化）：`Tag` 原语 `tone="quiet"`，内容 = **直接子数** N；置于标题之后、徽标 Tag 组之前；`runningDescendants > 0` 且折叠时，徽标内嵌 `StateDot state="ongoing"` 12px（`role="img"` + `aria-label={t('dash.tree.childrenRunning')}`，外包 Tooltip 同文案——「运行中的工作不许被折叠藏掉」）；
+- **会话格内元素顺序**：[展开按钮] [StateDot 自身运行] [标题] [子数徽标] [Tag 派生（fork 根行，P1）] [Tag 子代理] [Tag 已归档] [Tag 置顶] [error 图标]。子代理行也可以有自己的子树（嵌套委派），子数徽标与子代理徽标可同现；
+- **子代理行视觉降层**：标题色 `--dsw-alias-label-secondary`（主会话行保持 primary），字号不变 13px；**不显示置顶徽标、置顶不可操作**（子代理无置顶语义）；运行中/子代理/已归档徽标保留；数据四列照常；
+- **fork 根行「派生」Tag（P1，不阻塞验收——产品经理 2026-11-04 终裁第 5 条委托规格，产品设计决定做）**：`Tag` 原语 `tone="quiet"`（与模型 Tag 同款），文案 `dash.fork.tag`「派生」，置于 Tag 组**首位**（身份标记优先于属性标记）；fork 判定 = 有 `parentId` 且 `origin !== 'subagent'`（结构判定，与 design §13.5 终裁同源；禁用 `delegationDepth`——客户端投影没有该字段）；Tooltip **恒可用**（非 `onlyWhenClipped`——此 Tag 的存在理由就是回答「从哪来」，补回不挂树损失的出生关系信息）：`dash.fork.origin`「派生自会话 {title}」，`{title}` = 起源会话标题走 design §12 全局不变量（`title || id`；`byId[parentId]` 缺席——起源会话已删除——回落完整 parentId）；纯信息：不参与过滤/排序/级联/计数，不改变 Δ=0 与任何验收判据。动机：fork 与起源会话标题常相近，两个相像的根行易被误读为重复数据（本项目用户对「数差」类问题极敏感——问题 1/3 教训）；
+- 展开/收起**无动画**（表格行插拔，避免动效债）。
+
+### 15.3 三态勾选
+
+- 原生 `input[type=checkbox]` 的 `indeterminate` DOM 属性（浏览器默认横杠视觉，不自绘）；
+- 语义：checked = 自身在选中集；indeterminate = 自身未选但任一后代已选；**点击只增/删自身，永不触碰后代**（勾选不级联）；
+- aria 不变（`dash.row.select.aria`）；读屏对 indeterminate 原生播报 mixed 态。
+
+### 15.4 项目列单元格
+
+- 13px `--dsw-alias-label-secondary`，`text-overflow: ellipsis` 截断；
+- Tooltip（portal）**恒可用**（非 `onlyWhenClipped`——全路径消歧是本列设计目的）：label = `projectKey` 规范化全路径；触屏 `openOnClick=true`（数值明细类待遇，§10 纪律），触发区 `stopPropagation` 不触发行选中；
+- 空值（孤儿根无 cwd）→「—」（§5.6 占位规则：`aria-hidden` 视觉 + sr-only `dash.noData`），**不得冒充其他项目**。
+
+### 15.5 子代理档「所属主会话」小字
+
+> ⚠️ **2026-11-05 修订**：本节随「子代理档」删除而废弃，但「↳ 父标题」小字**保留在树形档子代理行**上——两层压平后点名真实父会话，补回丢失的中间层级信息（如孙代 B1a 压平重挂 P2 后，小字告知它真正属于 B1）；`dash.parent.label` 键随之**移出废弃清单**（复验实测仍在消费，项目经理 2026-11-05 拍板）。下述短 id 规则、§12 取值规则、Tooltip 两分支、`role="note"`、触屏不显示纪律**照常适用于树形子行**。
+
+- 仅**平面子代理档**显示（树形「全部」档结构已表达归属，不加）：会话格标题 flex 行尾追加 `↳ {父标题}`（11px `--dsw-alias-label-tertiary`，`max-width: 12em` 截断）；父标题取值走 design §12 **全局不变量**（`title || id`，禁止 `displayTitle`——D7 教训）；孤儿判定 = **行集成员判定**（`byId[parentId] === undefined`），不得用标题/id 字符串相等；
+- 父不在行集（已删除）→ 显示父短 id：**保留 `session-` 前缀（若有），取前缀之后 8 位**，尾加省略号——如 `session-93ac64a6…`；裸 UUID 父（嵌套委派场景）取 uuid 前 8 位，如 `4ee4b5eb…`。**不可取裸 id 前 8 位**：真实语料子代理的 `parentSession` 一律 `session-<uuid>` 形态（桌面 41 条实测 + 本轮孤儿夹具），裸取前 8 位恒为 `session-`，所有孤儿行同显、无法区分（测试工程师干跑证据，2026-11-04 修正）；
+- 显示短 id 时 Tooltip **恒可用**给父完整 id（缩写有损，需可对照语料；非 `onlyWhenClipped`）；
+- Tooltip `onlyWhenClipped` 完整父标题（`aria-label` 用 `dash.parent.label`）；小字 span 带 **`role="note"`**——裸 span 属 generic 元素，`aria-label` 不保证被读屏播报（测试工程师 P2 观察采纳，2026-11-04；同文件运行点 `role="img"` + aria-label 是有效先例）；触屏不显示（辅助信息，§7.1 纪律）。
+
+### 15.6 行级恢复按钮（仅「已归档」档）
+
+- 会话格标题行尾追加 mini 文字按钮 `.dsh-dash-btn-mini`（12px，主色文字按钮形态，文案 `dash.restore.row`「恢复」+ aria-label 带标题），点击 `stopPropagation`；
+- 可点条件：**显式归档且无已归档祖先**（即树根）；恢复 = `unarchive(rootId)` 一次，整树回原档（血统归档派生标记自动消失）；
+- 两类行**置灰 disabled**，Tooltip 指明**真正能解锁该行的动作**（不做成点了没反应）：
+  - ① 血统归档子行（不在显式集合，宿主 unarchive 守卫下本就是 no-op）→ Tooltip `dash.restore.withParent`「随祖先会话 {title} 恢复」，`{title}` = **最近的显式归档祖先**的标题（无标题按 §15.5 短 id 规则回落；取值同走 design §12 全局不变量）。孙代场景不能写死「随父会话恢复」：恢复 P 后 G1 因 C1 仍留档，而用户刚点的是 P——文案会指错层（测试工程师三步干跑抓出的对不上点，2026-11-04 修正）；
+  - ② 显式归档但存在已归档祖先的子行（单独恢复仍被血统覆盖、点了无效——「子先于父归档 → 父恢复后子仍留档」边界的交互表达）→ Tooltip `dash.restore.ancestorFirst`「需先恢复祖先会话 {title}」；该祖先恢复后本行按钮转为可点；
+- **fork 行（产品经理 2026-11-04 终裁第 3 条，产品设计落规格）**：fork 只经**自身显式归档**进本档（祖先归档不级联到它——血统/级联链在非 subagent 行截断，design §13.5），进档后为**独立根行**：不缩进、不进起源会话子树，即使起源会话同时在档——两者各自为根行、无父子视觉关系（`parentId` 是出生记录非包含关系）；其行级恢复按钮 = 本节可点形态（显式归档且无已归档祖先），恢复只作用自身及名下子代理；
+- 操作条批量恢复按钮保留（现语义：选中全为显式归档时可用）。
+
+### 15.7 级联文案与原子性反馈
+
+- **删除确认**（`DeleteDialog` 文案扩展）：单一父节点级联 → `dash.delete.cascade`「将删除 {title} 及其 {n} 个子代理会话（不可恢复）」；混合勾选（多根 + 散子，去重后）→ `dash.delete.cascade.summary`「将删除 {total} 个会话（含 {n} 个子代理，不可恢复）」+ 明细区逐根列「{title}：及其 {k} 个子代理」；
+- **归档确认**从简（可逆操作，P1）：结果 notice 用 `dash.archive.cascade`「已归档 {title} 及其 {n} 个子代理」；
+- **级联原子性拒绝**：复用现有 notice 失败明细形态（`.dsh-batch-notice`，15s 带明细）：标题 `dash.cascade.blocked`「存在运行中的会话，已拒绝该节点的级联操作」，明细逐条点名运行中会话标题；归档被拒沿用「停止并归档」重试入口（既有机制）。
+
+### 15.8 文案键增量（键名 + zh 占位；en 进 `locales.ts`，sentence case）
+
+| 键 | zh 占位 | 用途 |
+|---|---|---|
+| `dash.col.project` | 项目 | 项目列表头 |
+| `dash.tree.expand` | 展开 {title} 的 {n} 个子代理 | 展开按钮 aria-label（收起态） |
+| `dash.tree.collapse` | 收起 {title} 的子代理 | 展开按钮 aria-label（展开态） |
+| `dash.tree.childrenRunning` | 含运行中的子代理 | 子数徽标运行点 aria/Tooltip |
+| `dash.parent.label` | 所属主会话：{title} | 树形子代理行「↳ 父标题」小字 aria-label（§15.5 修订注记；2026-11-05 移出废弃清单） |
+| `dash.restore.row` | 恢复 | 行级恢复按钮文案 |
+| `dash.restore.row.aria` | 恢复 {title} 及其子树 | 行级恢复 aria-label |
+| `dash.restore.withParent` | 随祖先会话 {title} 恢复 | 血统归档行置灰 Tooltip（{title} = 最近显式归档祖先） |
+| `dash.restore.ancestorFirst` | 需先恢复祖先会话 {title} | 有已归档祖先的显式归档行置灰 Tooltip |
+| `dash.delete.cascade` | 将删除 {title} 及其 {n} 个子代理会话（不可恢复） | 单根级联删除确认 |
+| `dash.delete.cascade.summary` | 将删除 {total} 个会话（含 {n} 个子代理，不可恢复） | 混合勾选删除确认 |
+| `dash.archive.cascade` | 已归档 {title} 及其 {n} 个子代理 | 归档结果 notice |
+| `dash.cascade.blocked` | 存在运行中的会话，已拒绝该节点的级联操作 | 原子性拒绝 notice 标题 |
+| `dash.fork.tag` | 派生 | fork 根行身份 Tag（P1，§15.2；纯信息不参与语义） |
+| `dash.fork.origin` | 派生自会话 {title} | 「派生」Tag Tooltip（{title} = 起源会话标题，§12 不变量，缺席回落完整 parentId） |
+
+### 15.9 键盘/无障碍与验收清单增量
+
+- 键盘：展开按钮、行级恢复按钮 Tab 可达，`Space`/`Enter` 触发；**不引入 `role="tree"`**——保持原生 table 语义，层次由缩进 + `aria-expanded` 表达（读屏行列导航不变，§4.4 选型理由仍成立）；
+- 状态不靠颜色单传：运行点有 aria-label + Tooltip；子数徽标数字本身可读；
+- 双主题人工核验新增项：连接线、quiet 子数徽标、置灰按钮、`↳` 小字在浅/深色下的可读性；
+- GUI 验收清单（沙箱实测，配合产品经理的产品验收点）：默认全折叠；「▸ N」= 直接子数；展开态跨 5s 轮询保持；折叠父行运行指示两条路径（自身 StateDot / 后代徽标点）；孤儿子代理为顶层行且项目列「—」；子行项目 = 树根项目（即使自身另有 cwd）；chips 计数含折叠子行且与展开状态无关；全选 = 当前档可见行；级联删除两种文案形态 + 去重计数；原子性拒绝明细点名；恢复置灰两种情形（血统子 / 有已归档祖先的显式子）；「先归档子→归档父→恢复父」三步边界；档位切换选择集保留；<760px 项目并入第二行 + 表格横滚；触屏 Tooltip（项目列 openOnClick、小字不显示）。
+
+## 16. 会话召回 · UI 规格（v0.3，2026-11-04 拍板定稿）
+
+> 对应 design §13.6（语义以其为准）；项目经理已拍板三处取舍——含「召回只操作主会话 membership、**数量口径 = 主会话数**、子代理不回填」。复用基线同 §1：令牌 + 原语 + `.dsh-batch-*` 按钮族 + notice 形态 + 信任栅栏先例。
+
+### 16.1 召回横幅
+
+- 位置/形态：表格区顶部通知条，复用 §6.5 降级通知条的视觉骨架（全宽、13px、面板底色 + 底边 `--dsw-alias-border-l2`），行尾带操作按钮——与降级条的「常驻不可关」区分：召回横幅**可忽略**；
+- 内容：`dash.recall.banner`「发现工作区 {name} 可召回 {n} 个会话（含 {m} 个子代理）」（**{name} 必须在横幅内**——多工作区排队时靠它辨识当前条；2026-11-05 复验发现现实现文案丢了 {name}，随 D15 批次补回）+ ［查看］`dash.recall.view`（`.dsh-batch-btn` 主操作形态）+ ［忽略］`dash.recall.dismiss`（`.dsh-batch-btn` 次级形态）；`{name}` = `WorkspaceView.title`（无标题回落 path basename）；`{n}` = 裸 cwd 匹配命中的**未分组主会话**数（口径见 §16.4）；`{m}` = 命中主会话名下子代理总数（**parentId 亲缘链派生，遍历在非 subagent 子行截断**——fork 不计入起源会话的 {m}，其自身作为独立候选带自己的子代理数，fork 终裁第 2 点同旨、对应复验发现 F1；纯信息展示——子代理可见性来自 parentId 不来自账本，主会话召回后树自动完整归位；**不按 cwd 字符串聚拢计数**——D14 教训：按 cwd 聚拢会漏掉与父 cwd 不同的子代理、多算同目录别人家的子代理）；
+- `role="status"`（aria-live polite）；按钮 `(pointer: coarse)` 命中区 ≥40px、保持文字不 icon-only（§10 纪律）；
+- **触发基线与忽略记忆（2026-11-05 项目经理拍板 (b)）**：diff 基线 = **`dashStore`（订阅级）订阅建立后首个 `phase === 'ready'` 的 workspace 快照**（`WorkspaceSnapshot.phase`，架构师 2026-11-05 核定：pending 不抓、防「挂载早于首拍→空 baseline 把存量全误标为新」；**ready 且 items 为空照抓**——零工作区是可达态，baseline=空集时随后添加的第一个工作区照常弹），存 store 而非组件 effect——面板开关不影响，覆盖「先在侧栏加工作区、之后才打开批量面板」的现实顺序（mount 级 baseline 会让面板关闭期间添加的工作区横幅永不出现、该批未分组会话失去召回入口）；「忽略」记忆为**本次应用会话内**（store 级，面板开关不清除；不持久化——宿主重启/插件重载后 baseline 重置、旧成员 diff 为空，不再弹）；**待处理队列同为 store 级**：召回完成后的快照刷新只更新数据、不清空队列；常驻入口（「查找可召回会话」按钮）不做，列 design §10 演进——**插件未运行期间（含 CLI 途径）添加的工作区在下次启动首拍里已是旧成员、diff 恒空、无召回入口，属设计内已知边界不是缺陷**（一切 diff 方案的共同残余）；
+- **多工作区命中**：一次只展示一条（按快照 `items` 序首个）；忽略或召回完成后仍有剩余命中 → 重新评估展示下一条；
+- busy 期间（批量操作/召回执行中）横幅隐藏，完成后重新评估。
+
+### 16.2 召回清单（召回模式）
+
+- 点［查看］→ 面板进入「召回模式」：表格区**整体替换**为清单（不做 overlay 抽屉，避免新增 z-index/焦点层）；表格区顶部加返回按钮「‹ 看板」（文字按钮，`aria-label` = `dash.recall.back`）；召回模式标题 `dash.recall.title`「召回未分组会话 · {name}」，兼作表格 `<caption>`（实现增补，2026-11-05 核准——caption 对读屏播报表格用途有效）；
+- 清单用原生 `<table>`（同 §4.4 选型），**四列**（原第五列「状态」随置灰态一并砍除——无置灰态定案 (a)，见 §16.4）：
+
+| 列 | ≥760px | <760px |
+|---|---|---|
+| ☑（表头全选，aria = **`dash.recall.selectAll`**「全选 {n} 个可召回会话」——新键带 {n}，对读屏比复用通用键 `dash.selectAll.aria` 更有信息量，2026-11-05 项目经理裁决保留新键、改文档） | 40px | 44px |
+| 标题（§12 不变量取值；截断 Tooltip `onlyWhenClipped`；行尾附子代理计数 **`+N`**——N = 该主会话名下 **parentId 亲缘链**子代理数，**N=0 不渲染**，与横幅 {m} 同源取值、不按 cwd 聚拢，D14 判据：R1 显示 `+1`、R2 不显示；**计数遍历在非 subagent 子行截断**——fork（有 parentId 且 origin≠subagent）不计入起源会话的 +N、其子树不递归，fork 自身作为独立候选把名下子代理计入自己的 +N（fork 终裁第 2 点同旨；2026-11-05 产品设计补充，对应复验发现 F1）） | auto（min 200px） | auto |
+| 更新时间（格式定案 `YYYY-MM-DD`——「宿主无现成格式化」回落条款成立：插件侧拿不到宿主侧栏格式化器，2026-11-05 产品设计核准；列宽随格式回落实现现值） | 120px | **隐藏** |
+| cwd（截断 + Tooltip 全路径，同项目列纪律） | auto（min 120px） | **隐藏**，并入标题格第二行（11px `--dsw-alias-label-tertiary`，同 §15.1 先例） |
+
+- 行样式复用 `.dsh-dash-row` 全套（40/44px、hover、选中背景 multi-select 令牌）；默认**全部行选中**；
+- **无置灰态**（产品设计 2026-11-04 定案，采架构师结论 (a)；`dash.recall.unavailable` 键废弃）：客户端判不出目录存在性（浏览器无 fs），且结构上清单行几乎必然 attach 成功——workspace 注册制（添加时目录必已存在）、符号链接/子目录形态在预览阶段就不进候选、唯一失败窗是「添加后目录被删」的竞态（结构性理由详见 design §13.6）；**全部行可选**，失败收敛到 §16.3 执行明细逐条点名（宿主 attach 原生错误文案），不要求预览全知；
+- 排序：全部行按 updatedAt 降序（无可召回/不可召回之分——无置灰态）；
+- 底部操作条（替换现操作条位置）：［召回 {k} 条会话］（`dash.recall.execute`，k=0 时 disabled；现实现文案「召回选中会话」无 {k}，D15 批次补）+ ［取消］（`dash.recall.cancel`，返回看板并**丢弃**勾选态，重进恢复默认全选；**`back` 与 `cancel` 是两个控件**——顶部「‹ 看板」与底部「取消」，不得一键兼职，D15）+ 已选计数（`.dsh-batch-count` 复用）；
+- 键盘/焦点：召回模式下 **Esc = 返回看板**（不关面板；busy 时忽略，与既有 Esc 分层一致）；进入时焦点移到返回按钮，返回时还给横幅［查看］（横幅已消失则面板关闭按钮）。
+
+### 16.3 执行与反馈
+
+- 点［召回］→ busy：操作条切 `.dsh-batch-busy` 形态，文案 `dash.recall.busy`「正在召回…」（不定量进度——POST 一次性、逐条结果在响应里，无流式）；busy 期间按钮禁用、Esc 忽略（§6.5 纪律）；
+- 结果 notice（`.dsh-batch-notice` 全套形态）：全部成功 → `dash.recall.success`「已召回 {n} 个会话到 {name}」（6s 自动收起）；有失败（含部分成功）→ `dash.recall.failure`「召回完成：{ok} 成功，{fail} 失败」（15s）+ 明细逐条 = **行标题（§12 不变量，禁裸 id——D18）+ 失败 code 的 `notice.code.*` 本地化标签（补 5 键，D19）+ 宿主 message 原文（不翻译，技术错误原文对排查有用——项目经理 D19 拍板）**；
+- **HTTP 非 2xx 必须落 failure notice**（D12 教训：未查 `res.ok` → 整批 400 的合法 JSON body 不进 catch、被渲染成绿色「已召回 0 个会话」）：`if (!res.ok)` 独立分支 → failure notice，`{fail}` = 提交 id 数、明细逐条 `titleOf(id)` + 宿主 message；D13 后「目录已删」一族已由宿主转成 200 + per-row `cwd-unresolvable`（客户端单一失败处理形态），非 2xx 检查是兜真 4xx/5xx 的护栏；
+- 完成后：退出召回模式回看板；立即刷新 workspace 快照（`items` 更新 → 未分组口径收敛；**刷新只更新数据、不清空 store 级待处理队列**——§16.1，测试工程师发现三防断链）+ 手动拉一次 sessions/stats（§5.2 批量操作后刷新同款先例）；横幅命中已消除则不再展示。
+
+### 16.4 安全与数据口径
+
+- 召回走新宿主 POST 路由，**过 `isTrustedBatchRequest` 信任栅栏**（写操作，同 delete 路由先例；客户端 fetch 加同款自定义头）；无头/恶意 Origin → 403；
+- 数量口径 = **主会话数**：候选集 = 未分组 ∩ cwd 命中 ∩ `origin !== 'subagent'` ∩ **非零轮次**（看板会话口径 = 至少一轮对话；**键控 = `session.blank === true` 单键已定案**，同 design §13.5——缓存缺失 fallback 行按可见处理、与看板/侧栏同口径；零轮次空壳挂回工作区无意义——产品经理 2026-11-04 裁决）；子代理 membership 不回填（项目经理拍板③：侧栏不显示子代理，attach 与否零可见差异；看板树形挂主会话下不受 membership 影响）；
+- 预览匹配 = 客户端裸 cwd 相等，**两侧去尾斜杠后比较**（架构师加固：realpath 吃掉尾斜杠，CLI 创建的带尾斜杠 cwd 会话宿主 attach 必然成功，唯一风险是预览漏配、静默不进清单）；权威校验 = 宿主 `attachSession`（realpath 规范化逐字等于 workspace 路径、子目录不算），单条失败不阻塞其余，逐条回报；attach 幂等，失败重试安全。
+
+### 16.5 文案键全量（2026-11-05 复验后对账定稿；en 进 `locales.ts`，sentence case）
+
+| 键 | zh 占位 | 用途 |
+|---|---|---|
+| `dash.recall.banner` | 发现工作区 {name} 可召回 {n} 个会话（含 {m} 个子代理） | 横幅（{name} 必须在文案内，§16.1） |
+| `dash.recall.view` | 查看 | 横幅［查看］ |
+| `dash.recall.dismiss` | 忽略 | 横幅［忽略］ |
+| `dash.recall.back` | 返回看板 | 表格区顶部「‹ 看板」 |
+| `dash.recall.title` | 召回未分组会话 · {name} | 召回模式标题 + 表格 `<caption>`（实现增补，核准） |
+| `dash.recall.selectAll` | 全选 {n} 个可召回会话 | 表头全选 aria（替代复用 `dash.selectAll.aria`，2026-11-05 裁决） |
+| `dash.recall.execute` | 召回 {k} 条会话 | 底部提交（k=0 disabled；现实现无 {k}，D15 补） |
+| `dash.recall.cancel` | 取消 | 底部取消（与 back 两个控件，D15 补） |
+| `dash.recall.busy` | 正在召回… | 执行 busy 文案 |
+| `dash.recall.success` | 已召回 {n} 个会话到 {name} | 全成功 notice |
+| `dash.recall.failure` | 召回完成：{ok} 成功，{fail} 失败 | 有失败/部分成功 notice |
+| `notice.code.cwd-mismatch` | 会话工作目录与目标工作区不一致 | 失败明细标签（D19） |
+| `notice.code.no-cwd` | 会话无工作目录记录 | 失败明细标签（D19） |
+| `notice.code.attach-failed` | 会话不存在或已被删除 | 失败明细标签（D19） |
+| `notice.code.cwd-unresolvable` | 工作区目录不存在或无法解析 | 失败明细标签（D13 转 per-row 后整批同码） |
+| `notice.code.cwd-not-directory` | 工作区路径不是目录 | 失败明细标签（D19） |
+
+**键名改名定案**（测试工程师赞成、项目经理 2026-11-05 定，跨模块动词一致）：review→`view`、ignore→`dismiss`、submit→`execute`、done→`success`、failed→`failure`。**`dash.recall.unavailable` 废弃**（无置灰态定案 (a)，实现已零命中 ✓）；**`dash.recall.failureDetail` 死键删除**（D20：零消费，明细两段式布局归 notice 渲染器）。召回键全量 = `dash.recall.*` **11 键** + `notice.code.*` **5 键**；另 §15.8 fork Tag 两键（P1）不计入召回。
+
+### 16.6 窄窗 / 触屏 / 双主题
+
+- <760px：时间与 cwd 列隐藏（cwd 并入标题格第二行），清单不横滚（四列收窄后自适应）；
+- 触屏：按钮命中区 ≥40px；横幅与操作条按钮 flex-wrap 换行不 icon-only（§10 纪律）；
+- 双主题人工核验新增项：横幅底色/边框、busy 文案可读性（置灰行、warning Tag 随无置灰态定案废弃）。
+
+### 16.7 验收清单（召回部分，供测试工程师并入 acceptance v4）
+
+- 触发（**(b) 基线口径**）：**关着面板**先添加同路径 workspace → 再打开面板，与**开着面板**添加，两种顺序横幅都必须出现，{n}/{m}/{name} 正确（{m}=亲缘计数，含子代理树完整归位预期）；无命中不出现；宿主重启后旧成员不再弹（baseline 重置，残余边界见 design §10 演进——**设计内已知边界，不算缺陷**）；S4（零工作区起步添加第一个工作区 → 横幅弹）需要「删光工作区」前置、沙箱账本已被真实 GUI 操作冻结——**建议单测覆盖**（首拍 ready 且空 → 抓空 baseline → follow upsert → diff 命中），GUI 不强求；
+- 忽略：**本次应用会话内**不再出现该横幅（store 级记忆，面板重开**不再现**——原「重开重新出现」口径随 (b) 废弃）；多工作区命中逐条展示，召回完成后的快照刷新不清空待处理队列；
+- 清单：默认全部行选中（无置灰态，定案 (a)）；排序 = updatedAt 降序；全选/反选计数联动；行级 `+N` 仅真有亲缘子代理的行显示（判据：R1 显示 `+1`、R2 不显示——D14）；
+- 部分召回：反选后执行 k 条；数量口径 = 主会话数（子代理不计、不回填）；
+- 执行：busy 态 + Esc 忽略；成功后未分组消失、侧栏分组出现、看板「项目」列不变（cwd 未变）；
+- 失败明细（**换锚：原「清单置灰」随定案 (a) 废弃**）：语料造「cwd 已物理删除」的会话（RECALL_B 剧本——注册工作区后删目录）→ 该行**照常进清单且可选** → 执行 → 宿主把 realpath ENOENT 转成 **200 + 每条 `cwd-unresolvable`**（D13）→ failure notice 逐条点名（行标题 + 本地化标签 + 宿主 message 原文）；**任何 HTTP 非 2xx 同样必须落 failure notice、绝不显示绿色成功**（D12 判据）；「部分失败、其余成功」一次 GUI 提交做不出（同工作区候选共享同一 cwd 字符串、宿主判定必然同结论）——逐条点名覆盖走逐行差异配方（清单打开后、提交前 curl 删一条）或单测（宿主路由 + stub 抛错）；
+- 栅栏：无头 POST 召回路由 → 403；恶意 Origin → 403；
+- 窄窗 <760px：cwd 并入第二行；触屏命中区；
+- 幂等：同一批重复召回（重试路径）不产生重复账目、结果仍全成功。

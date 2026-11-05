@@ -470,10 +470,73 @@ body.dsh-dashboard-open .dsh-batch-bar { display: none; }
   white-space: nowrap;
   color: var(--dsw-alias-label-primary, #eee);
 }
+/* 子代理标题次级色 */
+.dsh-dash-session-title-sub {
+  color: var(--dsw-alias-label-secondary, #aaa);
+}
+/* 展开/折叠按钮 */
+.dsh-dash-expand-btn {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--dsw-alias-label-secondary, #aaa);
+  font-size: 10px;
+  line-height: 20px;
+  text-align: center;
+  cursor: pointer;
+  border-radius: 3px;
+}
+.dsh-dash-expand-btn:hover {
+  background: var(--dsw-alias-bg-hover, rgba(128,128,128,.15));
+}
+.dsh-dash-expand-btn:focus-visible {
+  outline: 2px solid var(--dsw-alias-accent, #5e81f4);
+  outline-offset: -2px;
+}
+/* 树连接线 */
+.dsh-dash-tree-connector {
+  flex: none;
+  width: 12px;
+  font-size: 11px;
+  color: var(--dsw-alias-border-l2, rgba(128,128,128,.4));
+  text-align: center;
+  line-height: 1;
+}
+/* 项目列 */
+.dsh-dash-project-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  color: var(--dsw-alias-label-secondary, #aaa);
+}
 .dsh-dash-session-model-sub {
   display: none;
   font-size: 11px;
   color: var(--dsw-alias-label-tertiary, #888);
+}
+/* 无障碍：屏幕阅读器专用文本（视觉隐藏） */
+.dsh-dash-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0,0,0,0);
+  white-space: nowrap;
+}
+/* 子代理所属主会话小字 */
+.dsh-dash-parent-label {
+  display: block;
+  font-size: 11px;
+  color: var(--dsw-alias-label-tertiary, #888);
+  margin-top: 1px;
+  max-width: 12em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .dsh-dash-session-subtitle {
   overflow: hidden;
@@ -583,7 +646,45 @@ body.dsh-dashboard-open .dsh-batch-bar { display: none; }
   .dsh-dash-model-col { display: none; }
   .dsh-dash-session-model-sub { display: block; }
   .dsh-dash-table-wrapper { overflow-x: auto; }
+  /* 召回清单响应式（D15）：隐藏时间与 cwd 列，cwd 并入标题第二行 */
+  .dsh-dash-recall-time-col { display: none; }
+  .dsh-dash-recall-cell-cwd { display: none; }
+  .dsh-dash-recall-cell-cwd-sub { display: inline; }
 }
+/* 召回清单底部操作条（D15） */
+.dsh-dash-recall-footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-top: 1px solid var(--dsw-alias-border-l1, rgba(128,128,128,.12));
+  background: var(--dsw-alias-bg-base, #1e1e1e);
+}
+.dsh-dash-recall-footer-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
+/* 召回清单 cwd 并入标题的副行（默认隐藏，<760px 显示） */
+.dsh-dash-recall-cell-cwd-sub {
+  display: none;
+  font-size: 11px;
+  color: var(--dsw-alias-label-tertiary, #888);
+}
+/* 召回清单标题与 cwd 截断 */
+.dsh-dash-recall-cell-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dsh-dash-recall-cell-cwd {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: block;
+}
+.dsh-dash-recall-time-col { white-space: nowrap; }
 `
 
 /**

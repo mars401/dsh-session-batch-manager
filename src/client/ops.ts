@@ -269,7 +269,8 @@ export function createBatchOps(
   )
 
   const titleOf = (sessionId: SessionIdString): string => {
-    const title = sessions.list.getSnapshot().byId[sessionId]?.displayTitle
+    // D9 修复（design §12 规则一）：不采信 displayTitle 的目录回落链，用持久化 title || id
+    const title = sessions.list.getSnapshot().byId[sessionId]?.title
     return typeof title === 'string' && title !== '' ? title : sessionId
   }
 

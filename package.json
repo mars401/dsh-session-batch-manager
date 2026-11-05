@@ -1,6 +1,6 @@
 {
   "name": "dsh-session-batch-manager",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "DeepSeek Harness session batch manager —— sidebar multi-select, batch archive / unarchive / delete, and session management dashboard with token usage, cache and context pressure visualization. | DSH 会话批量管理——侧栏多选、批量归档/恢复/删除，以及会话管理面板（token 消耗、缓存、上下文占比可视化）。",
   "license": "MIT",
   "keywords": [

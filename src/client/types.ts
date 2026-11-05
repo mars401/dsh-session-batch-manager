@@ -39,20 +39,34 @@ export interface SessionRowSummary {
   readonly title?: string
   readonly running?: boolean
   readonly cwd?: string
+  /** 父会话 id（子代理行必有，主会话行 absent）。 */
+  readonly parentId?: string
   readonly updatedAt?: number
 }
 
 /** `workspaces` 客户端服务里本插件用到的成员。 */
 export interface ClientWorkspacesLike {
-  /** 工作区快照：分组条目与注册表全局的归档/置顶集合。 */
+  /** 工作区快照：分组条目 + 注册表全局的归档/置顶集合 + phase（冷启动键控 ARCH §16.1）。 */
   readonly list: ObservableLike<{
     archivedSessionIds: readonly SessionIdString[]
     pinnedSessionIds: readonly SessionIdString[]
+    /** 工作区条目列表（每个条目的 workspaceId/path/sessionIds）。DSH 0.2.2-alpha.2 实为 list 快照的属性，不是独立 observable。 */
+    items: readonly WorkspaceItem[]
+    /** 数据就绪阶段：'pending' 首拍未到 / 'ready' 已就绪（即使 items 为空）。 */
+    phase: 'pending' | 'ready'
   }>
   /** 归档一个会话；`stopActivity: true` 时先停止其运行中的工作。 */
   archiveSession(sessionId: SessionIdString, options?: { stopActivity?: boolean }): Promise<void>
   /** 恢复一个已归档会话。 */
   unarchiveSession(sessionId: SessionIdString): Promise<void>
+}
+
+/** 一个工作区条目的快照（DSH 字段名 workspaceId，非 id）。 */
+export interface WorkspaceItem {
+  readonly workspaceId: string
+  readonly path: string
+  readonly title?: string
+  readonly sessionIds: readonly SessionIdString[]
 }
 
 /** `slots` 服务里本插件用到的成员（注册与等待声明）。 */
@@ -241,6 +255,8 @@ export interface DashboardRow {
   readonly id: SessionIdString
   readonly title: string
   readonly origin: string | undefined
+  readonly parentId: string | undefined
+  readonly cwd: string | undefined
   readonly running: boolean
   readonly archived: boolean
   readonly pinned: boolean
@@ -248,15 +264,60 @@ export interface DashboardRow {
   readonly stats: StatsSessionRow
 }
 
-/** 仪表盘过滤条件。 */
-export type DashboardFilter = 'all' | 'main' | 'subagent' | 'archived'
+/** 仪表盘过滤条件。v0.2 砍为两档：主会话（默认，树形）+ 已归档。 */
+export type DashboardFilter = 'main' | 'archived'
 
 /** 仪表盘面板状态（独立于 BatchState）。 */
 export interface DashboardState {
   readonly open: boolean
   readonly filter: DashboardFilter
   readonly selected: readonly SessionIdString[]
+  /** 展开的树节点 id 集合（会话级，不持久化，关面板重开回默认折叠）。 */
+  readonly expanded: ReadonlySet<SessionIdString>
   readonly busy: { readonly labelKey: string; readonly done: number; readonly total: number } | null
   readonly confirmDelete: readonly SessionIdString[] | null
   readonly notice: BatchNotice | null
+  /** 召回模式：非 null 时看板表格整体替换为召回清单。 */
+  readonly recallMode: RecallMode | null
+  /**
+   * 召回横幅已忽略的工作区 id 集合（本次应用会话内有效，决策 b）。
+   */
+  readonly recallDismissed: ReadonlySet<string>
+  /**
+   * 召回横幅 diff 基线——store 订阅建立后的首个 workspace items 快照 id 集合（决策 b）。
+   * null = 尚未捕获首拍快照。
+   */
+  readonly recallBaseline: ReadonlySet<string> | null
+}
+
+/** 召回模式下的界面状态。 */
+export interface RecallMode {
+  /** 当前展示的工作区（横幅一次展示一条）。 */
+  readonly workspaceId: string
+  readonly workspacePath: string
+  readonly workspaceTitle: string
+  /** 该工作区下可召回的主会话（不含子代理）。 */
+  readonly candidates: readonly RecallCandidate[]
+  /** 召回清单里用户勾选的候选行 id。 */
+  readonly selected: readonly SessionIdString[]
+  /** 子代理计数（纯信息，亲缘计数，不参与召回）。 */
+  readonly subagentCount: number
+}
+
+/** 一个可召回候选行。 */
+export interface RecallCandidate {
+  readonly id: SessionIdString
+  readonly title: string
+  readonly cwd: string
+  readonly updatedAt: number | undefined
+  /** 该会话名下子代理数（纯信息展示，不参与召回——决策③）。 */
+  readonly subagentCount: number
+}
+
+/** 召回路由的单条结果。 */
+export interface RecallResult {
+  readonly sessionId: string
+  readonly ok: boolean
+  readonly code?: string
+  readonly message?: string
 }
