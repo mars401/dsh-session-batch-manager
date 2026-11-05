@@ -28,29 +28,14 @@ All notable changes to this project will be documented in this file.
 - **`dashboard-tree` module**: Extracted `buildTree`, `visibleRows`, `descendantsOf` as pure functions — lineage tree construction, flatten, and fork truncation.
 - **`dashboard-recall` module**: Extracted `computeRecallCandidates` as a pure function — cwd-based grouping, parentId-chain lineage counting with fork boundary.
 - **`dashboard-store` module**: Dashboard panel state store with filter/selection/expand/recall-mode/baseline management.
-- **Contract test suites** (67 tests across 6 suites):
+- **Contract test suites** (67 tests in 4 files):
   - `tests/dashboard-rows.test.mjs` (20 tests): Title fallback, blank exclusion, filter semantics, tooltip presence, cascade truncation source guard.
   - `tests/dashboard-tree.test.mjs` (20 tests): Tree construction, flatten, fork root parity, lineage archive, children invariant (filters-order independent).
   - `tests/dashboard-recall.test.mjs` (17 tests): Recall candidate grouping, cwd normalization, lineage counting with fork truncation.
-  - `tests/dashboard-stats.test.mjs` (10 tests): Stats aggregator revision skip, concurrency cap, dedup throttle, error isolation.
+  - `tests/stats.test.mjs` (10 tests): Stats aggregator revision skip, concurrency cap, dedup throttle, error isolation.
   - `tests/fixtures/`: Corpus generators and verification scripts for acceptance testing.
 - **Acceptance docs**: `docs/acceptance-session-dashboard-v3.md`, `docs/acceptance-session-dashboard-v4.md`, `docs/design-session-dashboard.md`, `docs/ui-session-dashboard.md`.
 - **I18n**: `dash.recall.*` (11 keys), `notice.code.cwd-*` (5 keys), `dash.fork.tag` / `dash.fork.origin` (2 keys), plus fork Tag and new filter chip labels. Removed dead keys `dash.filter.all` / `dash.filter.subagent` / `dash.recall.failureDetail`.
-
-### Fixes
-
-- **Dashboard default filter**: Changed from "All" to "Main sessions" so that subagent sessions are hidden by default (filter tabs remain available for drill-down).
-- **Folder-like row bug**: Untitled sessions no longer display the working-directory basename as their title. The dashboard join now reads `sessions.list.title` (the persisted title projection) and falls back to the session ID instead of the `displayTitle` chain which included a directory-basename fallback. Two real-world empty-shell sessions that previously appeared as `workspace`, `AI`, and `Research` now display their session IDs.
-- **Blank (draft) rows excluded**: Uncommitted draft sessions (`blank === true`) are no longer included in the dashboard row set, matching the sidebar select-all exclusion. Draft rows have no persistence, no data, and no archive/delete semantics.
-- **Truncated title tooltip**: The dashboard title column now wraps the session title in a `Tooltip` (`onlyWhenClipped`, `portal`) so long session IDs (36 chars) are still readable on hover. Matches the existing tooltip on the model column.
-- **Built artifacts report correct version**: The initial 0.1.1 push had `lib/host/index.js` still embedding `"0.1.0"` in three places (`/status`, index-inject, `/stats`). Rebuilt artifacts now report `"0.1.1"`.
-
-### Added
-
-- **`dashboard-rows` module** (`src/client/dashboard-rows.ts`): Extracted `joinDashboardRows` and `filterDashboardRows` as pure, testable functions with no runtime dependencies.
-- **Dashboard row tests** (`tests/dashboard-rows.test.mjs`): 14 contract tests against the real source (no mirrors), covering title fallback, blank exclusion, filter semantics, and tooltip presence.
-- **Corpus fixtures** (`tests/fixtures/`): Session corpus generator (`gen-screenshot-corpus.mjs`) used for acceptance testing.
-- **Acceptance checklist** (`docs/acceptance-session-dashboard-v2.md`): Step-by-step verification guide for the sandbox environment.
 
 ## 0.1.0 — 2026-11-03
 
